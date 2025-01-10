@@ -11,7 +11,7 @@ export class Player {
     this.firePower = 1;
     this.isBombCooldown = false;
     this.hp = 3;
-    this.score = 0;
+    this.isDamaged = false;
     this.render();
   }
 
