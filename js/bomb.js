@@ -1,5 +1,5 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs } from './game.js'; // bombs をインポート
+import { database, MAP_SIZE, bombs, walls } from './game.js'; // walls をインポート
 
 // エフェクトのプーリング用配列
 const explosionPool = [];
@@ -66,13 +66,12 @@ export class Bomb {
       remove(ref(database, `bombs/${this.id}`))
         .then(() => {
           console.log('Bomb removed successfully:', this.id);
-          // 爆弾が削除された後に、bombs オブジェクトからも削除
           delete bombs[this.id];
+          this.player.bombCount--; // 爆弾が削除されたら bombCount を減らす
         })
         .catch((error) => {
           console.error('Failed to remove bomb:', error);
         });
-      this.player.bombCount--;
     }, this.timer * 1000);
   }
 
@@ -96,6 +95,11 @@ export class Bomb {
 
         // マップの範囲外の場合は処理を中断
         if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
+
+        // 壁に当たった場合は爆発を中断
+        if (walls.has(`${explosionX},${explosionY}`)) {
+          break; // この方向の爆発を終了
+        }
 
         // 爆発エフェクトを表示
         this.showExplosionEffect(explosionX, explosionY);

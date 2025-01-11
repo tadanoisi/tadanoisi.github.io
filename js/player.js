@@ -51,11 +51,17 @@ export class Player {
     }
   }
 
+  // 爆弾設置クールダウンを開始するメソッド
   startBombCooldown() {
     this.isBombCooldown = true;
     setTimeout(() => {
       this.isBombCooldown = false;
       console.log('Bomb cooldown ended');
     }, 2000); // クールダウン時間を2秒に設定
+  }
+
+  // 爆弾を設置できるかどうかをチェックするメソッド
+  canPlaceBomb() {
+    return !this.isBombCooldown && this.bombCount < this.maxBombs;
   }
 }

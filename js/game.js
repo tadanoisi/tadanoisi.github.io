@@ -22,9 +22,9 @@ export const database = getDatabase(app);
 const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
 export const MAP_SIZE = 21; // マップサイズをグローバル変数として定義
+export const walls = new Set(); // walls をエクスポート
 let player;
 let players = {};
-let walls = new Set(); // Non-destroyable walls
 let blocks = new Set(); // Destroyable blocks
 export const bombs = {}; // bombs をエクスポート
 
@@ -264,31 +264,37 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Bomb placement
-document.addEventListener('keydown', async (e) => { // async を追加
-  if (e.key === ' ' && player.isMe && !player.isBombCooldown && player.bombCount < player.maxBombs) {
+let isPlacingBomb = false; // 爆弾設置中かどうかを示すフラグ
+
+document.addEventListener('keydown', async (e) => {
+  if (e.key === ' ' && player.isMe && player.canPlaceBomb() && !isPlacingBomb) {
+    isPlacingBomb = true; // 爆弾設置中にフラグを設定
+
     const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
 
     // 爆弾の位置がマップの範囲内かチェック
     if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
-      player.isBombCooldown = true; // クールダウンを開始
-
       try {
-        await set(ref(database, `bombs/${bombId}`), { // await を追加
+        // Firebaseに爆弾データを書き込む
+        await set(ref(database, `bombs/${bombId}`), {
           x: player.x,
           y: player.y,
           timer: 3,
           firePower: player.firePower,
           placedBy: playerId // 爆弾を置いたプレイヤーのIDを記録
         });
+
         console.log('Bomb placed successfully:', bombId);
         player.bombCount++;
         player.startBombCooldown(); // クールダウンを開始
       } catch (error) {
         console.error('Failed to place bomb:', error);
-        player.isBombCooldown = false; // エラーが発生した場合はクールダウンを解除
+      } finally {
+        isPlacingBomb = false; // 爆弾設置が完了したらフラグを解除
       }
     } else {
       console.error('Bomb position is out of bounds:', player.x, player.y);
+      isPlacingBomb = false; // エラーが発生した場合もフラグを解除
     }
   }
 });
