@@ -53,6 +53,7 @@ export class Player {
     this.isBombCooldown = true;
     setTimeout(() => {
       this.isBombCooldown = false;
+      console.log('Bomb cooldown ended'); // ログを追加
     }, 2000);
   }
 }

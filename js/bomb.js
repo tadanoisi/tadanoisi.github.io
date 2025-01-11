@@ -18,22 +18,51 @@ export class Bomb {
 
   render() {
     const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    // マップの範囲外の場合は処理を中断
+    if (this.x < 0 || this.x >= 20 || this.y < 0 || this.y >= 20) {
+      console.error('Bomb position is out of bounds:', this.x, this.y);
+      return;
+    }
+
     const cellIndex = this.y * 20 + this.x; // マップサイズが20x20なので20に変更
     const cell = gameDiv.children[cellIndex];
+
+    if (!cell) {
+      console.error('Cell not found at:', this.x, this.y);
+      return;
+    }
 
     this.element = document.createElement('div');
     this.element.classList.add('bomb');
     cell.appendChild(this.element);
 
+    console.log('Bomb rendered at:', this.x, this.y); // ログを追加
+
     setTimeout(() => {
       this.explode();
-      remove(ref(database, `bombs/${this.id}`));
+      remove(ref(database, `bombs/${this.id}`))
+        .then(() => {
+          console.log('Bomb removed successfully:', this.id);
+        })
+        .catch((error) => {
+          console.error('Failed to remove bomb:', error);
+        });
       this.player.bombCount--;
     }, this.timer * 1000);
   }
 
   explode() {
     const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
     const directions = [
       { x: 0, y: 0 }, // 中心
       { x: 1, y: 0 }, { x: -1, y: 0 }, // 左右
@@ -45,7 +74,9 @@ export class Bomb {
         const explosionX = this.x + dir.x * i;
         const explosionY = this.y + dir.y * i;
 
-        if (explosionX < 0 || explosionX >= 20 || explosionY < 0 || explosionY >= 20) break; // マップサイズが20x20なので20に変更
+        // マップの範囲外の場合は処理を中断
+        if (explosionX < 0 || explosionX >= 20 || explosionY < 0 || explosionY >= 20) break;
+
         if (this.blocks.has(`${explosionX},${explosionY}`)) {
           this.destroyBlock(explosionX, explosionY);
           break;
@@ -63,8 +94,24 @@ export class Bomb {
 
   showExplosionEffect(x, y) {
     const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    // マップの範囲外の場合は処理を中断
+    if (x < 0 || x >= 20 || y < 0 || y >= 20) {
+      console.error('Explosion position is out of bounds:', x, y);
+      return;
+    }
+
     const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
     const cell = gameDiv.children[cellIndex];
+
+    if (!cell) {
+      console.error('Cell not found at:', x, y);
+      return;
+    }
 
     const explosionElement = document.createElement('div');
     explosionElement.classList.add('explosion');
@@ -80,8 +127,24 @@ export class Bomb {
 
   destroyBlock(x, y) {
     const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    // マップの範囲外の場合は処理を中断
+    if (x < 0 || x >= 20 || y < 0 || y >= 20) {
+      console.error('Block position is out of bounds:', x, y);
+      return;
+    }
+
     const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
     const cell = gameDiv.children[cellIndex];
+
+    if (!cell) {
+      console.error('Cell not found at:', x, y);
+      return;
+    }
 
     cell.classList.remove('block');
     this.blocks.delete(`${x},${y}`);
@@ -90,6 +153,7 @@ export class Bomb {
   remove() {
     if (this.element && this.element.parentNode) {
       this.element.remove();
+      console.log('Bomb removed from DOM:', this.id); // ログを追加
     }
     this.explosionElements.forEach((element) => {
       if (element && element.parentNode) {

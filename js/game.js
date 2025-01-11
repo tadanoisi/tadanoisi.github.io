@@ -90,6 +90,9 @@ function initPlayer() {
   player = new Player(startX, startY, playerId, true, updateHPDisplay);
   player.render();
   set(ref(database, `players/${playerId}`), { x: player.x, y: player.y })
+    .then(() => {
+      console.log('Player initialized successfully:', playerId);
+    })
     .catch((error) => {
       console.error('Failed to initialize player:', error);
     });
@@ -151,15 +154,36 @@ onValue(ref(database, 'bombs'), (snapshot) => {
 
   for (const id in bombsData) {
     const { x, y, timer, firePower } = bombsData[id];
-    if (!bombs[id]) {
-      bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player);
+
+    // 爆弾の位置がマップの範囲内かチェック
+    if (x >= 0 && x < 20 && y >= 0 && y < 20) {
+      if (!bombs[id]) {
+        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player);
+      }
+    } else {
+      console.error('Invalid bomb position:', x, y);
+
+      // 不正なデータをFirebaseから削除
+      remove(ref(database, `bombs/${id}`))
+        .then(() => {
+          console.log('Invalid bomb removed from Firebase:', id);
+        })
+        .catch((error) => {
+          console.error('Failed to remove invalid bomb:', error);
+        });
     }
   }
 });
 
 // Remove player data when tab is closed
 window.onbeforeunload = () => {
-  remove(ref(database, `players/${playerId}`));
+  remove(ref(database, `players/${playerId}`))
+    .then(() => {
+      console.log('Player removed successfully:', playerId);
+    })
+    .catch((error) => {
+      console.error('Failed to remove player:', error);
+    });
 };
 
 // Start the game
@@ -189,6 +213,9 @@ document.addEventListener('keydown', (e) => {
     if (!isWallOrBlock(newX, newY) && !isOccupied(newX, newY)) {
       player.updatePosition(newX, newY);
       set(ref(database, `players/${playerId}`), { x: newX, y: newY })
+        .then(() => {
+          console.log('Player position updated successfully:', newX, newY);
+        })
         .catch((error) => {
           console.error('Failed to update player position:', error);
         });
@@ -200,9 +227,20 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === ' ' && player.isMe && !player.isBombCooldown && player.bombCount < player.maxBombs) {
     const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
-    set(ref(database, `bombs/${bombId}`), { x: player.x, y: player.y, timer: 3, firePower: player.firePower });
-    player.bombCount++;
-    player.startBombCooldown();
-    new Bomb(player.x, player.y, bombId, player.firePower, blocks, checkPlayerDamage, player);
+
+    // 爆弾の位置がマップの範囲内かチェック
+    if (player.x >= 0 && player.x < 20 && player.y >= 0 && player.y < 20) {
+      set(ref(database, `bombs/${bombId}`), { x: player.x, y: player.y, timer: 3, firePower: player.firePower })
+        .then(() => {
+          console.log('Bomb placed successfully:', bombId);
+          player.bombCount++;
+          player.startBombCooldown(); // クールダウンを開始
+        })
+        .catch((error) => {
+          console.error('Failed to place bomb:', error);
+        });
+    } else {
+      console.error('Bomb position is out of bounds:', player.x, player.y);
+    }
   }
 });
