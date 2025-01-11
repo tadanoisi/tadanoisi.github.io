@@ -1,0 +1,16 @@
+bomberman-game/
+│
+├── index.html
+├── js/
+│   ├── config.js
+│   ├── gameManager.js
+│   ├── playerManager.js
+│   ├── bombManager.js
+│   ├── player.js
+│   ├── bomb.js
+│   ├── map.js
+│   └── eventManager.js
+├── css/
+│   └── style.css
+└── assets/
+    └── (画像や音声ファイルなど)

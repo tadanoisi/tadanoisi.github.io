@@ -26,7 +26,7 @@ let player;
 let players = {};
 let walls = new Set(); // Non-destroyable walls
 let blocks = new Set(); // Destroyable blocks
-let bombs = {};
+export const bombs = {}; // bombs をエクスポート
 
 // Player ID generation
 const playerId = `player_${Math.floor(Math.random() * 1000)}`;
@@ -169,12 +169,12 @@ onValue(ref(database, 'bombs'), (snapshot) => {
   }
 
   for (const id in bombsData) {
-    const { x, y, timer, firePower } = bombsData[id];
+    const { x, y, timer, firePower, placedBy } = bombsData[id];
 
     // 爆弾の位置がマップの範囲内かチェック
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player);
+        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy);
       }
     } else {
       console.error('Invalid bomb position:', x, y);
@@ -244,6 +244,13 @@ document.addEventListener('keydown', (e) => {
       return;
     }
 
+    // 爆弾の上を通れるかチェック
+    const bombAtNewPosition = Object.values(bombs).find(bomb => bomb.x === newX && bomb.y === newY);
+    if (bombAtNewPosition) {
+      console.log('Cannot move: Bomb in the way');
+      return;
+    }
+
     // 移動処理を実行
     player.updatePosition(newX, newY);
     set(ref(database, `players/${playerId}`), { x: newX, y: newY })
@@ -263,7 +270,13 @@ document.addEventListener('keydown', (e) => {
 
     // 爆弾の位置がマップの範囲内かチェック
     if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
-      set(ref(database, `bombs/${bombId}`), { x: player.x, y: player.y, timer: 3, firePower: player.firePower })
+      set(ref(database, `bombs/${bombId}`), {
+        x: player.x,
+        y: player.y,
+        timer: 3,
+        firePower: player.firePower,
+        placedBy: playerId // 爆弾を置いたプレイヤーのIDを記録
+      })
         .then(() => {
           console.log('Bomb placed successfully:', bombId);
           player.bombCount++;

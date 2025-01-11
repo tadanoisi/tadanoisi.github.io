@@ -1,8 +1,8 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE } from './game.js';
+import { database, MAP_SIZE, bombs } from './game.js'; // bombs をインポート
 
 export class Bomb {
-  constructor(x, y, id, firePower, blocks, checkPlayerDamage, player) {
+  constructor(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy) {
     this.x = x;
     this.y = y;
     this.id = id;
@@ -12,6 +12,7 @@ export class Bomb {
     this.blocks = blocks;
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
+    this.placedBy = placedBy; // 爆弾を置いたプレイヤーのID
     this.explosionElements = [];
     this.render();
   }
@@ -46,6 +47,8 @@ export class Bomb {
       remove(ref(database, `bombs/${this.id}`))
         .then(() => {
           console.log('Bomb removed successfully:', this.id);
+          // 爆弾が削除された後に、bombs オブジェクトからも削除
+          delete bombs[this.id];
         })
         .catch((error) => {
           console.error('Failed to remove bomb:', error);

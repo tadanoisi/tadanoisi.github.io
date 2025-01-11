@@ -29,9 +29,9 @@ export class BombManager {
 
       // 新しい爆弾を追加
       for (const id in bombsData) {
-        const { x, y, timer, firePower } = bombsData[id];
+        const { x, y, timer, firePower, placedBy, canPass } = bombsData[id];
         if (!this.bombs[id]) {
-          this.bombs[id] = new Bomb(x, y, id, firePower, this.blocks, this.checkPlayerDamage, this.player);
+          this.bombs[id] = new Bomb(x, y, id, firePower, this.blocks, this.checkPlayerDamage, this.player, placedBy, canPass);
         }
       }
     });
