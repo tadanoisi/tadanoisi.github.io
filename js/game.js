@@ -28,6 +28,15 @@ let players = {};
 let blocks = new Set(); // Destroyable blocks
 export const bombs = {}; // bombs をエクスポート
 
+// アイテムの種類を定義
+export const ITEM_TYPES = {
+  BOMB_UP: 'bomb_up', // 爆弾の最大設置数を増やす
+  FIRE_UP: 'fire_up', // 爆発範囲を強化する
+};
+
+// アイテムを管理するセット
+export const items = new Map(); // { "x,y": { type: ITEM_TYPES.BOMB_UP } }
+
 // Player ID generation
 const playerId = `player_${Math.floor(Math.random() * 1000)}`;
 
@@ -260,6 +269,9 @@ document.addEventListener('keydown', (e) => {
       .catch((error) => {
         console.error('Failed to update player position:', error);
       });
+
+    // アイテムを取得するチェック
+    checkItemPickup(newX, newY);
   }
 });
 
@@ -286,7 +298,7 @@ document.addEventListener('keydown', async (e) => {
 
         console.log('Bomb placed successfully:', bombId);
         player.bombCount++;
-        player.startBombCooldown(); // クールダウンを開始
+        console.log(`Bomb count: ${player.bombCount}`); // デバッグログ
       } catch (error) {
         console.error('Failed to place bomb:', error);
       } finally {
@@ -298,3 +310,50 @@ document.addEventListener('keydown', async (e) => {
     }
   }
 });
+
+// ブロックを壊す関数
+function destroyBlock(x, y) {
+  const cellIndex = y * MAP_SIZE + x;
+  const cell = gameDiv.children[cellIndex];
+  if (!cell) return;
+
+  cell.classList.remove('block');
+  blocks.delete(`${x},${y}`);
+
+  // 100%の確率でアイテムを生成
+  const itemType = Math.random() < 0.5 ? ITEM_TYPES.BOMB_UP : ITEM_TYPES.FIRE_UP;
+  items.set(`${x},${y}`, { type: itemType });
+
+  // アイテムを表示
+  const itemElement = document.createElement('div');
+  itemElement.classList.add('item', itemType);
+  cell.appendChild(itemElement);
+}
+
+// プレイヤーがアイテムを取得する処理
+function checkItemPickup(x, y) {
+  const itemKey = `${x},${y}`;
+  if (items.has(itemKey)) {
+    const item = items.get(itemKey);
+    items.delete(itemKey);
+
+    // アイテムの効果を適用
+    if (item.type === ITEM_TYPES.BOMB_UP) {
+      player.maxBombs++;
+      console.log('Bomb UP! Max bombs:', player.maxBombs); // デバッグログ
+    } else if (item.type === ITEM_TYPES.FIRE_UP) {
+      player.firePower++;
+      console.log('Fire UP! Fire power:', player.firePower); // デバッグログ
+    }
+
+    // アイテムを削除
+    const cellIndex = y * MAP_SIZE + x;
+    const cell = gameDiv.children[cellIndex];
+    if (cell) {
+      const itemElement = cell.querySelector('.item');
+      if (itemElement) {
+        itemElement.remove();
+      }
+    }
+  }
+}

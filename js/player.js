@@ -62,6 +62,8 @@ export class Player {
 
   // 爆弾を設置できるかどうかをチェックするメソッド
   canPlaceBomb() {
-    return !this.isBombCooldown && this.bombCount < this.maxBombs;
+    const canPlace = !this.isBombCooldown && this.bombCount < this.maxBombs;
+    console.log(`Can place bomb? ${canPlace} (bombCount: ${this.bombCount}, maxBombs: ${this.maxBombs})`); // デバッグログ
+    return canPlace;
   }
 }

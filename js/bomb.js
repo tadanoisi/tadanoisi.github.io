@@ -1,5 +1,5 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs, walls } from './game.js'; // walls をインポート
+import { database, MAP_SIZE, bombs, walls, ITEM_TYPES, items } from './game.js'; // walls をインポート
 
 // エフェクトのプーリング用配列
 const explosionPool = [];
@@ -187,6 +187,15 @@ export class Bomb {
 
     cell.classList.remove('block');
     this.blocks.delete(`${x},${y}`);
+
+    // 100%の確率でアイテムを生成
+    const itemType = Math.random() < 0.5 ? ITEM_TYPES.BOMB_UP : ITEM_TYPES.FIRE_UP;
+    items.set(`${x},${y}`, { type: itemType });
+
+    // アイテムを表示
+    const itemElement = document.createElement('div');
+    itemElement.classList.add('item', itemType);
+    cell.appendChild(itemElement);
   }
 
   remove() {
