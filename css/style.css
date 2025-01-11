@@ -62,3 +62,18 @@
   width: 100%;
   height: 100%;
 }
+
+/* 爆発エフェクト用のCSSアニメーション */
+@keyframes explosion {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.explosion {
+  animation: explosion 0.3s ease-out forwards;
+  position: absolute; /* 絶対位置指定 */
+  width: 100%;
+  height: 100%;
+  background-color: orange;
+  z-index: 15;
+}

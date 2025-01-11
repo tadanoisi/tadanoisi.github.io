@@ -1,6 +1,25 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { database, MAP_SIZE, bombs } from './game.js'; // bombs をインポート
 
+// エフェクトのプーリング用配列
+const explosionPool = [];
+
+// エフェクト要素を取得する関数
+function getExplosionElement() {
+  if (explosionPool.length > 0) {
+    return explosionPool.pop(); // プールから要素を取り出す
+  }
+  const explosionElement = document.createElement('div');
+  explosionElement.classList.add('explosion');
+  return explosionElement;
+}
+
+// エフェクト要素をプールに戻す関数
+function releaseExplosionElement(explosionElement) {
+  explosionElement.classList.remove('explosion');
+  explosionPool.push(explosionElement);
+}
+
 export class Bomb {
   constructor(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy) {
     this.x = x;
@@ -71,19 +90,23 @@ export class Bomb {
     ];
 
     directions.forEach((dir) => {
-      for (let i = 1; i <= this.firePower; i++) {
+      for (let i = 0; i <= this.firePower; i++) { // i を 0 から開始して中心も含める
         const explosionX = this.x + dir.x * i;
         const explosionY = this.y + dir.y * i;
 
         // マップの範囲外の場合は処理を中断
         if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
 
+        // 爆発エフェクトを表示
+        this.showExplosionEffect(explosionX, explosionY);
+
+        // ブロックがある場合は破壊し、その先には進まない
         if (this.blocks.has(`${explosionX},${explosionY}`)) {
           this.destroyBlock(explosionX, explosionY);
-          break;
+          break; // この方向の爆発を終了
         }
 
-        this.showExplosionEffect(explosionX, explosionY);
+        // プレイヤーのダメージチェック
         this.checkPlayerDamage(explosionX, explosionY);
       }
     });
@@ -114,16 +137,27 @@ export class Bomb {
       return;
     }
 
-    const explosionElement = document.createElement('div');
-    explosionElement.classList.add('explosion');
+    const explosionElement = getExplosionElement();
     cell.appendChild(explosionElement);
-    this.explosionElements.push(explosionElement);
 
-    setTimeout(() => {
+    console.log(`Explosion effect added at (${x}, ${y})`); // デバッグ用ログ
+
+    // アニメーション終了後に要素を削除
+    const onAnimationEnd = () => {
+      console.log(`Explosion effect ended at (${x}, ${y})`); // デバッグ用ログ
+      explosionElement.removeEventListener('animationend', onAnimationEnd); // イベントリスナーを削除
       if (explosionElement.parentNode) {
         explosionElement.remove();
       }
-    }, 500);
+      releaseExplosionElement(explosionElement); // エフェクト要素をプールに戻す
+    };
+
+    explosionElement.addEventListener('animationend', onAnimationEnd, { once: true }); // 一度だけ実行
+
+    // エフェクトが確実に表示されるように少し遅らせる
+    setTimeout(() => {
+      explosionElement.classList.add('explosion');
+    }, 10);
   }
 
   destroyBlock(x, y) {
