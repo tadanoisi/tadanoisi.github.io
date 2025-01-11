@@ -16,12 +16,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const database = getDatabase(app); // Export database
+export const database = getDatabase(app);
 
 // Game elements
 const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
-const mapSize = 20; // マップサイズを20x20に変更
+export const MAP_SIZE = 21; // マップサイズをグローバル変数として定義
 let player;
 let players = {};
 let walls = new Set(); // Non-destroyable walls
@@ -33,13 +33,17 @@ const playerId = `player_${Math.floor(Math.random() * 1000)}`;
 
 // Map initialization
 function initMap() {
-  for (let y = 0; y < mapSize; y++) {
-    for (let x = 0; x < mapSize; x++) {
+  gameDiv.innerHTML = ''; // Clear existing map
+  gameDiv.style.gridTemplateColumns = `repeat(${MAP_SIZE}, 20px)`;
+  gameDiv.style.gridTemplateRows = `repeat(${MAP_SIZE}, 20px)`;
+
+  for (let y = 0; y < MAP_SIZE; y++) {
+    for (let x = 0; x < MAP_SIZE; x++) {
       const cell = document.createElement('div');
       cell.classList.add('cell');
 
       // 外周に壁を設置
-      if (x === 0 || y === 0 || x === mapSize - 1 || y === mapSize - 1) {
+      if (x === 0 || y === 0 || x === MAP_SIZE - 1 || y === MAP_SIZE - 1) {
         cell.classList.add('wall');
         walls.add(`${x},${y}`);
       } else if (x % 2 === 0 && y % 2 === 0) {
@@ -82,10 +86,22 @@ function updateHPDisplay(hp) {
 // Initialize player
 function initPlayer() {
   let startX, startY;
+  let maxAttempts = 100; // 最大試行回数を設定
+  let attempts = 0;
+
   do {
-    startX = Math.floor(Math.random() * mapSize);
-    startY = Math.floor(Math.random() * mapSize);
-  } while (isOccupied(startX, startY) || isWallOrBlock(startX, startY));
+    startX = Math.floor(Math.random() * MAP_SIZE);
+    startY = Math.floor(Math.random() * MAP_SIZE);
+    attempts++;
+    if (attempts >= maxAttempts) {
+      console.error('Failed to find a valid starting position for the player.');
+      return;
+    }
+  } while (
+    isOccupied(startX, startY) || // 他のプレイヤーと重ならないか
+    isWallOrBlock(startX, startY) || // 壁やブロックと重ならないか
+    blocks.has(`${startX},${startY}`) // 壊せるブロックと重ならないか
+  );
 
   player = new Player(startX, startY, playerId, true, updateHPDisplay);
   player.render();
@@ -156,7 +172,7 @@ onValue(ref(database, 'bombs'), (snapshot) => {
     const { x, y, timer, firePower } = bombsData[id];
 
     // 爆弾の位置がマップの範囲内かチェック
-    if (x >= 0 && x < 20 && y >= 0 && y < 20) {
+    if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
         bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player);
       }
@@ -210,16 +226,33 @@ document.addEventListener('keydown', (e) => {
         break;
     }
 
-    if (!isWallOrBlock(newX, newY) && !isOccupied(newX, newY)) {
-      player.updatePosition(newX, newY);
-      set(ref(database, `players/${playerId}`), { x: newX, y: newY })
-        .then(() => {
-          console.log('Player position updated successfully:', newX, newY);
-        })
-        .catch((error) => {
-          console.error('Failed to update player position:', error);
-        });
+    // マップの範囲内かチェック
+    if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) {
+      console.log('Cannot move: Out of bounds');
+      return;
     }
+
+    // 壁やブロックがあるかチェック
+    if (isWallOrBlock(newX, newY)) {
+      console.log('Cannot move: Wall or block');
+      return;
+    }
+
+    // 他のプレイヤーがいるかチェック
+    if (isOccupied(newX, newY)) {
+      console.log('Cannot move: Occupied by another player');
+      return;
+    }
+
+    // 移動処理を実行
+    player.updatePosition(newX, newY);
+    set(ref(database, `players/${playerId}`), { x: newX, y: newY })
+      .then(() => {
+        console.log('Player position updated successfully:', newX, newY);
+      })
+      .catch((error) => {
+        console.error('Failed to update player position:', error);
+      });
   }
 });
 
@@ -229,7 +262,7 @@ document.addEventListener('keydown', (e) => {
     const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
 
     // 爆弾の位置がマップの範囲内かチェック
-    if (player.x >= 0 && player.x < 20 && player.y >= 0 && player.y < 20) {
+    if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
       set(ref(database, `bombs/${bombId}`), { x: player.x, y: player.y, timer: 3, firePower: player.firePower })
         .then(() => {
           console.log('Bomb placed successfully:', bombId);

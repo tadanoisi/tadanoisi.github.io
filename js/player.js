@@ -1,3 +1,5 @@
+import { MAP_SIZE } from './game.js'; // マップサイズをインポート
+
 export class Player {
   constructor(x, y, id, isMe, updateHPDisplay) {
     this.x = x;
@@ -17,7 +19,7 @@ export class Player {
 
   render() {
     const gameDiv = document.getElementById('game');
-    const cellIndex = this.y * 20 + this.x; // マップサイズが20x20なので20に変更
+    const cellIndex = this.y * MAP_SIZE + this.x; // マップサイズを動的に参照
     const cell = gameDiv.children[cellIndex];
     if (this.element) {
       this.element.remove();
@@ -53,7 +55,7 @@ export class Player {
     this.isBombCooldown = true;
     setTimeout(() => {
       this.isBombCooldown = false;
-      console.log('Bomb cooldown ended'); // ログを追加
+      console.log('Bomb cooldown ended');
     }, 2000);
   }
 }

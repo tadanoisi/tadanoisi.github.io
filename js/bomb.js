@@ -1,5 +1,5 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database } from './game.js';
+import { database, MAP_SIZE } from './game.js';
 
 export class Bomb {
   constructor(x, y, id, firePower, blocks, checkPlayerDamage, player) {
@@ -24,12 +24,12 @@ export class Bomb {
     }
 
     // マップの範囲外の場合は処理を中断
-    if (this.x < 0 || this.x >= 20 || this.y < 0 || this.y >= 20) {
+    if (this.x < 0 || this.x >= MAP_SIZE || this.y < 0 || this.y >= MAP_SIZE) {
       console.error('Bomb position is out of bounds:', this.x, this.y);
       return;
     }
 
-    const cellIndex = this.y * 20 + this.x; // マップサイズが20x20なので20に変更
+    const cellIndex = this.y * MAP_SIZE + this.x; // マップサイズを動的に参照
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -40,8 +40,6 @@ export class Bomb {
     this.element = document.createElement('div');
     this.element.classList.add('bomb');
     cell.appendChild(this.element);
-
-    console.log('Bomb rendered at:', this.x, this.y); // ログを追加
 
     setTimeout(() => {
       this.explode();
@@ -75,7 +73,7 @@ export class Bomb {
         const explosionY = this.y + dir.y * i;
 
         // マップの範囲外の場合は処理を中断
-        if (explosionX < 0 || explosionX >= 20 || explosionY < 0 || explosionY >= 20) break;
+        if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
 
         if (this.blocks.has(`${explosionX},${explosionY}`)) {
           this.destroyBlock(explosionX, explosionY);
@@ -100,12 +98,12 @@ export class Bomb {
     }
 
     // マップの範囲外の場合は処理を中断
-    if (x < 0 || x >= 20 || y < 0 || y >= 20) {
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
       console.error('Explosion position is out of bounds:', x, y);
       return;
     }
 
-    const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
+    const cellIndex = y * MAP_SIZE + x; // マップサイズを動的に参照
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -133,12 +131,12 @@ export class Bomb {
     }
 
     // マップの範囲外の場合は処理を中断
-    if (x < 0 || x >= 20 || y < 0 || y >= 20) {
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
       console.error('Block position is out of bounds:', x, y);
       return;
     }
 
-    const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
+    const cellIndex = y * MAP_SIZE + x; // マップサイズを動的に参照
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -153,7 +151,7 @@ export class Bomb {
   remove() {
     if (this.element && this.element.parentNode) {
       this.element.remove();
-      console.log('Bomb removed from DOM:', this.id); // ログを追加
+      console.log('Bomb removed from DOM:', this.id);
     }
     this.explosionElements.forEach((element) => {
       if (element && element.parentNode) {
