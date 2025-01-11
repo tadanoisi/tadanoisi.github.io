@@ -264,27 +264,29 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Bomb placement
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => { // async を追加
   if (e.key === ' ' && player.isMe && !player.isBombCooldown && player.bombCount < player.maxBombs) {
     const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
 
     // 爆弾の位置がマップの範囲内かチェック
     if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
-      set(ref(database, `bombs/${bombId}`), {
-        x: player.x,
-        y: player.y,
-        timer: 3,
-        firePower: player.firePower,
-        placedBy: playerId // 爆弾を置いたプレイヤーのIDを記録
-      })
-        .then(() => {
-          console.log('Bomb placed successfully:', bombId);
-          player.bombCount++;
-          player.startBombCooldown(); // クールダウンを開始
-        })
-        .catch((error) => {
-          console.error('Failed to place bomb:', error);
+      player.isBombCooldown = true; // クールダウンを開始
+
+      try {
+        await set(ref(database, `bombs/${bombId}`), { // await を追加
+          x: player.x,
+          y: player.y,
+          timer: 3,
+          firePower: player.firePower,
+          placedBy: playerId // 爆弾を置いたプレイヤーのIDを記録
         });
+        console.log('Bomb placed successfully:', bombId);
+        player.bombCount++;
+        player.startBombCooldown(); // クールダウンを開始
+      } catch (error) {
+        console.error('Failed to place bomb:', error);
+        player.isBombCooldown = false; // エラーが発生した場合はクールダウンを解除
+      }
     } else {
       console.error('Bomb position is out of bounds:', player.x, player.y);
     }

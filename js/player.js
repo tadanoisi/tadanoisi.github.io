@@ -9,9 +9,9 @@ export class Player {
     this.updateHPDisplay = updateHPDisplay;
     this.element = null;
     this.bombCount = 0;
-    this.maxBombs = 1;
+    this.maxBombs = 1; // 同時に置ける爆弾の最大数
     this.firePower = 1;
-    this.isBombCooldown = false;
+    this.isBombCooldown = false; // クールダウン中かどうか
     this.hp = 3; // HPをローカルで管理
     this.isDamaged = false;
     this.render();
@@ -56,6 +56,6 @@ export class Player {
     setTimeout(() => {
       this.isBombCooldown = false;
       console.log('Bomb cooldown ended');
-    }, 2000);
+    }, 2000); // クールダウン時間を2秒に設定
   }
 }
