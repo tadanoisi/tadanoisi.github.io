@@ -21,7 +21,7 @@ export const database = getDatabase(app); // Export database
 // Game elements
 const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
-const mapSize = 15;
+const mapSize = 20; // マップサイズを20x20に変更
 let player;
 let players = {};
 let walls = new Set(); // Non-destroyable walls
@@ -38,10 +38,14 @@ function initMap() {
       const cell = document.createElement('div');
       cell.classList.add('cell');
 
-      if (x % 2 === 0 && y % 2 === 0) {
+      // 外周に壁を設置
+      if (x === 0 || y === 0 || x === mapSize - 1 || y === mapSize - 1) {
         cell.classList.add('wall');
         walls.add(`${x},${y}`);
-      } else if (Math.random() < 0.3 && !(x === 0 && y === 0)) {
+      } else if (x % 2 === 0 && y % 2 === 0) {
+        cell.classList.add('wall');
+        walls.add(`${x},${y}`);
+      } else if (Math.random() < 0.3 && !(x === 1 && y === 1)) { // スタート地点付近にブロックを生成しない
         cell.classList.add('block');
         blocks.add(`${x},${y}`);
       }
@@ -79,50 +83,32 @@ function updateHPDisplay(hp) {
 function initPlayer() {
   let startX, startY;
   do {
-    startX = Math.floor(Math.random() * 15);
-    startY = Math.floor(Math.random() * 15);
+    startX = Math.floor(Math.random() * mapSize);
+    startY = Math.floor(Math.random() * mapSize);
   } while (isOccupied(startX, startY) || isWallOrBlock(startX, startY));
 
   player = new Player(startX, startY, playerId, true, updateHPDisplay);
   player.render();
-  set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp })
+  set(ref(database, `players/${playerId}`), { x: player.x, y: player.y })
     .catch((error) => {
       console.error('Failed to initialize player:', error);
     });
 }
 
-// Add enemy players
-function addEnemyPlayer() {
-  const enemyId = `enemy_${Math.floor(Math.random() * 1000)}`;
-  let startX, startY;
-  do {
-    startX = Math.floor(Math.random() * 15);
-    startY = Math.floor(Math.random() * 15);
-  } while (isOccupied(startX, startY) || isWallOrBlock(startX, startY));
-
-  const enemy = new Player(startX, startY, enemyId, false, updateHPDisplay);
-  enemy.render();
-  set(ref(database, `players/${enemyId}`), { x: enemy.x, y: enemy.y, hp: enemy.hp })
-    .catch((error) => {
-      console.error('Failed to initialize enemy:', error);
-    });
-}
-
 // Check player damage from explosion
 function checkPlayerDamage(x, y) {
-  for (const id in players) {
-    if (players[id].x === x && players[id].y === y && !players[id].isDamaged) {
-      players[id].isDamaged = true;
-      players[id].updateHP(players[id].hp - 1);
+  if (player.x === x && player.y === y && !player.isDamaged) {
+    player.isDamaged = true;
+    player.updateHP(player.hp - 1);
 
-      if (players[id].isMe) {
-        updateHPDisplay(players[id].hp);
-      }
-
-      setTimeout(() => {
-        players[id].isDamaged = false;
-      }, 1000);
+    if (player.hp <= 0) {
+      alert('Game Over!');
+      window.location.reload();
     }
+
+    setTimeout(() => {
+      player.isDamaged = false;
+    }, 1000);
   }
 }
 
@@ -141,12 +127,11 @@ onValue(ref(database, 'players'), (snapshot) => {
   }
 
   for (const id in playersData) {
-    const { x, y, hp } = playersData[id];
+    const { x, y } = playersData[id];
     if (!players[id]) {
       players[id] = new Player(x, y, id, id === playerId, updateHPDisplay);
     }
     players[id].updatePosition(x, y);
-    players[id].updateHP(hp);
   }
 });
 
@@ -180,7 +165,6 @@ window.onbeforeunload = () => {
 // Start the game
 initMap();
 initPlayer();
-addEnemyPlayer();
 
 // Player movement
 document.addEventListener('keydown', (e) => {
@@ -204,7 +188,7 @@ document.addEventListener('keydown', (e) => {
 
     if (!isWallOrBlock(newX, newY) && !isOccupied(newX, newY)) {
       player.updatePosition(newX, newY);
-      set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp }) // HPを含めて更新
+      set(ref(database, `players/${playerId}`), { x: newX, y: newY })
         .catch((error) => {
           console.error('Failed to update player position:', error);
         });
@@ -219,6 +203,6 @@ document.addEventListener('keydown', (e) => {
     set(ref(database, `bombs/${bombId}`), { x: player.x, y: player.y, timer: 3, firePower: player.firePower });
     player.bombCount++;
     player.startBombCooldown();
-    new Bomb(player.x, player.y, bombId, player.firePower, blocks, checkPlayerDamage, player); // プレイヤーオブジェクトを渡す
+    new Bomb(player.x, player.y, bombId, player.firePower, blocks, checkPlayerDamage, player);
   }
 });

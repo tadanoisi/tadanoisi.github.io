@@ -10,14 +10,14 @@ export class Player {
     this.maxBombs = 1;
     this.firePower = 1;
     this.isBombCooldown = false;
-    this.hp = 3;
+    this.hp = 3; // HPをローカルで管理
     this.isDamaged = false;
     this.render();
   }
 
   render() {
     const gameDiv = document.getElementById('game');
-    const cellIndex = this.y * 15 + this.x;
+    const cellIndex = this.y * 20 + this.x; // マップサイズが20x20なので20に変更
     const cell = gameDiv.children[cellIndex];
     if (this.element) {
       this.element.remove();
@@ -38,13 +38,6 @@ export class Player {
 
   updateHP(hp) {
     this.hp = hp;
-    if (this.hp <= 0) {
-      this.remove();
-      if (this.isMe) {
-        alert('Game Over!');
-        window.location.reload();
-      }
-    }
     if (this.isMe && this.updateHPDisplay) {
       this.updateHPDisplay(this.hp);
     }

@@ -1,5 +1,5 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database } from './game.js'; // Import database from game.js
+import { database } from './game.js';
 
 export class Bomb {
   constructor(x, y, id, firePower, blocks, checkPlayerDamage, player) {
@@ -11,14 +11,14 @@ export class Bomb {
     this.element = null;
     this.blocks = blocks;
     this.checkPlayerDamage = checkPlayerDamage;
-    this.player = player; // プレイヤーオブジェクトを保持
+    this.player = player;
     this.explosionElements = [];
     this.render();
   }
 
   render() {
     const gameDiv = document.getElementById('game');
-    const cellIndex = this.y * 15 + this.x;
+    const cellIndex = this.y * 20 + this.x; // マップサイズが20x20なので20に変更
     const cell = gameDiv.children[cellIndex];
 
     this.element = document.createElement('div');
@@ -28,16 +28,16 @@ export class Bomb {
     setTimeout(() => {
       this.explode();
       remove(ref(database, `bombs/${this.id}`));
-      this.player.bombCount--; // 爆発後に bombCount を減らす
+      this.player.bombCount--;
     }, this.timer * 1000);
   }
 
   explode() {
     const gameDiv = document.getElementById('game');
     const directions = [
-      { x: 0, y: 0 },
-      { x: 1, y: 0 }, { x: -1, y: 0 },
-      { x: 0, y: 1 }, { x: 0, y: -1 }
+      { x: 0, y: 0 }, // 中心
+      { x: 1, y: 0 }, { x: -1, y: 0 }, // 左右
+      { x: 0, y: 1 }, { x: 0, y: -1 } // 上下
     ];
 
     directions.forEach((dir) => {
@@ -45,38 +45,46 @@ export class Bomb {
         const explosionX = this.x + dir.x * i;
         const explosionY = this.y + dir.y * i;
 
-        if (explosionX < 0 || explosionX >= 15 || explosionY < 0 || explosionY >= 15) break;
+        if (explosionX < 0 || explosionX >= 20 || explosionY < 0 || explosionY >= 20) break; // マップサイズが20x20なので20に変更
         if (this.blocks.has(`${explosionX},${explosionY}`)) {
-          const cellIndex = explosionY * 15 + explosionX;
-          const cell = gameDiv.children[cellIndex];
-          cell.classList.remove('block');
-          this.blocks.delete(`${explosionX},${explosionY}`);
+          this.destroyBlock(explosionX, explosionY);
           break;
         }
 
-        const cellIndex = explosionY * 15 + explosionX;
-        const cell = gameDiv.children[cellIndex];
-
-        const explosionElement = document.createElement('div');
-        explosionElement.classList.add('explosion');
-        cell.appendChild(explosionElement);
-        this.explosionElements.push(explosionElement);
-
-        if (typeof this.checkPlayerDamage === 'function') {
-          this.checkPlayerDamage(explosionX, explosionY);
-        }
-
-        setTimeout(() => {
-          if (explosionElement.parentNode) {
-            explosionElement.remove();
-          }
-        }, 500);
+        this.showExplosionEffect(explosionX, explosionY);
+        this.checkPlayerDamage(explosionX, explosionY);
       }
     });
 
     if (this.element && this.element.parentNode) {
       this.element.remove();
     }
+  }
+
+  showExplosionEffect(x, y) {
+    const gameDiv = document.getElementById('game');
+    const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
+    const cell = gameDiv.children[cellIndex];
+
+    const explosionElement = document.createElement('div');
+    explosionElement.classList.add('explosion');
+    cell.appendChild(explosionElement);
+    this.explosionElements.push(explosionElement);
+
+    setTimeout(() => {
+      if (explosionElement.parentNode) {
+        explosionElement.remove();
+      }
+    }, 500);
+  }
+
+  destroyBlock(x, y) {
+    const gameDiv = document.getElementById('game');
+    const cellIndex = y * 20 + x; // マップサイズが20x20なので20に変更
+    const cell = gameDiv.children[cellIndex];
+
+    cell.classList.remove('block');
+    this.blocks.delete(`${x},${y}`);
   }
 
   remove() {
