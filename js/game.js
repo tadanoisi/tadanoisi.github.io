@@ -20,7 +20,7 @@ const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
 const firePowerDisplay = document.getElementById('fire-power');
 const bombCountDisplay = document.getElementById('bomb-count');
-export const MAP_SIZE = 21;
+export const MAP_SIZE = 25;
 export const walls = new Set();
 let player;
 let players = {};
@@ -182,7 +182,7 @@ onValue(ref(database, 'bombs'), (snapshot) => {
     const { x, y, timer, firePower, placedBy } = bombsData[id];
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy, playerId); // playerId を渡す
+        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy, playerId);
       }
     } else {
       console.error('Invalid bomb position:', x, y);
