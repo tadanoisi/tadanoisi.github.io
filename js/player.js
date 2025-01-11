@@ -1,25 +1,25 @@
-import { MAP_SIZE } from './game.js'; // マップサイズをインポート
+import { MAP_SIZE } from './game.js';
 
 export class Player {
-  constructor(x, y, id, isMe, updateHPDisplay) {
+  constructor(x, y, id, isMe, updateHUD) {
     this.x = x;
     this.y = y;
     this.id = id;
     this.isMe = isMe;
-    this.updateHPDisplay = updateHPDisplay;
+    this.updateHUD = updateHUD;
     this.element = null;
     this.bombCount = 0;
-    this.maxBombs = 1; // 同時に置ける爆弾の最大数
+    this.maxBombs = 1;
     this.firePower = 1;
-    this.isBombCooldown = false; // クールダウン中かどうか
-    this.hp = 3; // HPをローカルで管理
+    this.isBombCooldown = false;
+    this.hp = 3;
     this.isDamaged = false;
     this.render();
   }
 
   render() {
     const gameDiv = document.getElementById('game');
-    const cellIndex = this.y * MAP_SIZE + this.x; // マップサイズを動的に参照
+    const cellIndex = this.y * MAP_SIZE + this.x;
     const cell = gameDiv.children[cellIndex];
     if (this.element) {
       this.element.remove();
@@ -40,8 +40,8 @@ export class Player {
 
   updateHP(hp) {
     this.hp = hp;
-    if (this.isMe && this.updateHPDisplay) {
-      this.updateHPDisplay(this.hp);
+    if (this.isMe && this.updateHUD) {
+      this.updateHUD();
     }
   }
 
@@ -51,19 +51,21 @@ export class Player {
     }
   }
 
-  // 爆弾設置クールダウンを開始するメソッド
-  startBombCooldown() {
-    this.isBombCooldown = true;
-    setTimeout(() => {
-      this.isBombCooldown = false;
-      console.log('Bomb cooldown ended');
-    }, 2000); // クールダウン時間を2秒に設定
+  placeBomb() {
+    if (this.canPlaceBomb()) {
+      this.bombCount++;
+      this.updateHUD();
+    }
   }
 
-  // 爆弾を設置できるかどうかをチェックするメソッド
+  bombExploded() {
+    if (this.bombCount > 0) {
+      this.bombCount--;
+      this.updateHUD();
+    }
+  }
+
   canPlaceBomb() {
-    const canPlace = !this.isBombCooldown && this.bombCount < this.maxBombs;
-    console.log(`Can place bomb? ${canPlace} (bombCount: ${this.bombCount}, maxBombs: ${this.maxBombs})`); // デバッグログ
-    return canPlace;
+    return !this.isBombCooldown && this.bombCount < this.maxBombs;
   }
 }

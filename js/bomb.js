@@ -1,27 +1,24 @@
 import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs, walls, ITEM_TYPES, items } from './game.js'; // walls をインポート
+import { database, MAP_SIZE, bombs, walls, ITEM_TYPES, items } from './game.js';
 
-// エフェクトのプーリング用配列
 const explosionPool = [];
 
-// エフェクト要素を取得する関数
 function getExplosionElement() {
   if (explosionPool.length > 0) {
-    return explosionPool.pop(); // プールから要素を取り出す
+    return explosionPool.pop();
   }
   const explosionElement = document.createElement('div');
   explosionElement.classList.add('explosion');
   return explosionElement;
 }
 
-// エフェクト要素をプールに戻す関数
 function releaseExplosionElement(explosionElement) {
   explosionElement.classList.remove('explosion');
   explosionPool.push(explosionElement);
 }
 
 export class Bomb {
-  constructor(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy) {
+  constructor(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy, playerId) {
     this.x = x;
     this.y = y;
     this.id = id;
@@ -31,7 +28,8 @@ export class Bomb {
     this.blocks = blocks;
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
-    this.placedBy = placedBy; // 爆弾を置いたプレイヤーのID
+    this.placedBy = placedBy;
+    this.playerId = playerId; // playerId を受け取る
     this.explosionElements = [];
     this.render();
   }
@@ -43,13 +41,7 @@ export class Bomb {
       return;
     }
 
-    // マップの範囲外の場合は処理を中断
-    if (this.x < 0 || this.x >= MAP_SIZE || this.y < 0 || this.y >= MAP_SIZE) {
-      console.error('Bomb position is out of bounds:', this.x, this.y);
-      return;
-    }
-
-    const cellIndex = this.y * MAP_SIZE + this.x; // マップサイズを動的に参照
+    const cellIndex = this.y * MAP_SIZE + this.x;
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -67,7 +59,9 @@ export class Bomb {
         .then(() => {
           console.log('Bomb removed successfully:', this.id);
           delete bombs[this.id];
-          this.player.bombCount--; // 爆弾が削除されたら bombCount を減らす
+          if (this.placedBy === this.playerId) { // playerId を正しく参照
+            this.player.bombExploded(); // 爆弾が爆発したときに bombCount を減らす
+          }
         })
         .catch((error) => {
           console.error('Failed to remove bomb:', error);
@@ -83,34 +77,29 @@ export class Bomb {
     }
 
     const directions = [
-      { x: 0, y: 0 }, // 中心
-      { x: 1, y: 0 }, { x: -1, y: 0 }, // 左右
-      { x: 0, y: 1 }, { x: 0, y: -1 } // 上下
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }, { x: -1, y: 0 },
+      { x: 0, y: 1 }, { x: 0, y: -1 }
     ];
 
     directions.forEach((dir) => {
-      for (let i = 0; i <= this.firePower; i++) { // i を 0 から開始して中心も含める
+      for (let i = 0; i <= this.firePower; i++) {
         const explosionX = this.x + dir.x * i;
         const explosionY = this.y + dir.y * i;
 
-        // マップの範囲外の場合は処理を中断
         if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
 
-        // 壁に当たった場合は爆発を中断
         if (walls.has(`${explosionX},${explosionY}`)) {
-          break; // この方向の爆発を終了
+          break;
         }
 
-        // 爆発エフェクトを表示
         this.showExplosionEffect(explosionX, explosionY);
 
-        // ブロックがある場合は破壊し、その先には進まない
         if (this.blocks.has(`${explosionX},${explosionY}`)) {
           this.destroyBlock(explosionX, explosionY);
-          break; // この方向の爆発を終了
+          break;
         }
 
-        // プレイヤーのダメージチェック
         this.checkPlayerDamage(explosionX, explosionY);
       }
     });
@@ -127,13 +116,7 @@ export class Bomb {
       return;
     }
 
-    // マップの範囲外の場合は処理を中断
-    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
-      console.error('Explosion position is out of bounds:', x, y);
-      return;
-    }
-
-    const cellIndex = y * MAP_SIZE + x; // マップサイズを動的に参照
+    const cellIndex = y * MAP_SIZE + x;
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -144,21 +127,16 @@ export class Bomb {
     const explosionElement = getExplosionElement();
     cell.appendChild(explosionElement);
 
-    console.log(`Explosion effect added at (${x}, ${y})`); // デバッグ用ログ
-
-    // アニメーション終了後に要素を削除
     const onAnimationEnd = () => {
-      console.log(`Explosion effect ended at (${x}, ${y})`); // デバッグ用ログ
-      explosionElement.removeEventListener('animationend', onAnimationEnd); // イベントリスナーを削除
+      explosionElement.removeEventListener('animationend', onAnimationEnd);
       if (explosionElement.parentNode) {
         explosionElement.remove();
       }
-      releaseExplosionElement(explosionElement); // エフェクト要素をプールに戻す
+      releaseExplosionElement(explosionElement);
     };
 
-    explosionElement.addEventListener('animationend', onAnimationEnd, { once: true }); // 一度だけ実行
+    explosionElement.addEventListener('animationend', onAnimationEnd, { once: true });
 
-    // エフェクトが確実に表示されるように少し遅らせる
     setTimeout(() => {
       explosionElement.classList.add('explosion');
     }, 10);
@@ -171,13 +149,7 @@ export class Bomb {
       return;
     }
 
-    // マップの範囲外の場合は処理を中断
-    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
-      console.error('Block position is out of bounds:', x, y);
-      return;
-    }
-
-    const cellIndex = y * MAP_SIZE + x; // マップサイズを動的に参照
+    const cellIndex = y * MAP_SIZE + x;
     const cell = gameDiv.children[cellIndex];
 
     if (!cell) {
@@ -188,11 +160,9 @@ export class Bomb {
     cell.classList.remove('block');
     this.blocks.delete(`${x},${y}`);
 
-    // 100%の確率でアイテムを生成
     const itemType = Math.random() < 0.5 ? ITEM_TYPES.BOMB_UP : ITEM_TYPES.FIRE_UP;
     items.set(`${x},${y}`, { type: itemType });
 
-    // アイテムを表示
     const itemElement = document.createElement('div');
     itemElement.classList.add('item', itemType);
     cell.appendChild(itemElement);
