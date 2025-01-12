@@ -1,4 +1,4 @@
-import { MAP_SIZE } from './game.js'; // MAP_SIZEをインポート
+import { MAP_SIZE } from './game.js';
 
 export class Player {
   constructor(x, y, id, isMe, updateHUD) {
@@ -32,7 +32,7 @@ export class Player {
     }
 
     if (this.element) {
-      this.element.remove(); // 既存の要素を削除
+      this.element.remove();
     }
 
     this.element = document.createElement('div');
@@ -58,7 +58,7 @@ export class Player {
 
   remove() {
     if (this.element && this.element.parentNode) {
-      this.element.remove(); // プレイヤー要素をDOMから削除
+      this.element.remove();
     }
   }
 

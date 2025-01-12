@@ -20,7 +20,7 @@ const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
 const firePowerDisplay = document.getElementById('fire-power');
 const bombCountDisplay = document.getElementById('bomb-count');
-const respawnButton = document.getElementById('respawn-button'); // 復活ボタン
+const respawnButton = document.getElementById('respawn-button');
 export const MAP_SIZE = 25;
 export const walls = new Set();
 let player;
@@ -28,6 +28,12 @@ let players = {};
 export const bombs = {};
 
 const playerId = `player_${Math.floor(Math.random() * 1000)}`;
+
+// ステータス変更用のUI要素を取得
+const hpInput = document.getElementById('hp-input');
+const bombCountInput = document.getElementById('bomb-count-input');
+const firePowerInput = document.getElementById('fire-power-input');
+const applyStatusButton = document.getElementById('apply-status');
 
 function updateHUD() {
   if (player) {
@@ -67,9 +73,9 @@ function updatePlayerList(players) {
 function getRandomPosition() {
   let x, y;
   do {
-    x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1; // 1からMAP_SIZE-2の範囲でランダム
-    y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1; // 1からMAP_SIZE-2の範囲でランダム
-  } while (isWallOrBlock(x, y) || isOccupied(x, y)); // 壁や他のプレイヤーと重ならないようにする
+    x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
+    y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
+  } while (isWallOrBlock(x, y) || isOccupied(x, y));
   return { x, y };
 }
 
@@ -100,7 +106,7 @@ function initMap() {
 }
 
 function initPlayer() {
-  const { x, y } = getRandomPosition(); // ランダムな位置を取得
+  const { x, y } = getRandomPosition();
 
   if (isWallOrBlock(x, y)) {
     console.error('Player starting position is blocked!');
@@ -148,8 +154,8 @@ function checkPlayerDamage(x, y) {
     player.updateHP(player.hp - 1);
 
     if (player.hp <= 0) {
-      removePlayer(playerId); // HPが0になったプレイヤーを削除
-      respawnButton.style.display = 'block'; // 復活ボタンを表示
+      removePlayer(playerId);
+      respawnButton.style.display = 'block';
       alert('You died! Press the respawn button to come back.');
     } else {
       set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp });
@@ -174,28 +180,38 @@ function removePlayer(playerId) {
 }
 
 function respawnPlayer() {
-  // 古いプレイヤーを削除
   if (player) {
-    player.remove(); // ローカルのプレイヤー表示を削除
+    player.remove();
   }
 
-  // 古いプレイヤーデータをFirebaseから削除
   remove(ref(database, `players/${playerId}`))
     .then(() => {
-      console.log('Old player data removed successfully:', playerId);
-
-      // 新しいプレイヤーを生成
-      const { x, y } = getRandomPosition(); // ランダムな位置を取得
+      const { x, y } = getRandomPosition();
       player = new Player(x, y, playerId, true, updateHUD);
       player.render();
       set(ref(database, `players/${playerId}`), { x, y, hp: player.hp });
-      respawnButton.style.display = 'none'; // 復活ボタンを非表示
+      respawnButton.style.display = 'none';
       updateHUD();
     })
     .catch((error) => {
       console.error('Failed to remove old player data:', error);
     });
 }
+
+// ステータスを適用するイベントリスナー
+applyStatusButton.addEventListener('click', () => {
+  const newHP = parseInt(hpInput.value, 10);
+  const newBombCount = parseInt(bombCountInput.value, 10);
+  const newFirePower = parseInt(firePowerInput.value, 10);
+
+  if (player) {
+    player.hp = newHP;
+    player.maxBombs = newBombCount;
+    player.firePower = newFirePower;
+    updateHUD();
+    set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp });
+  }
+});
 
 onValue(ref(database, 'players'), (snapshot) => {
   const playersData = snapshot.val();
@@ -219,7 +235,7 @@ onValue(ref(database, 'players'), (snapshot) => {
     players[id].updateHP(hp);
 
     if (hp <= 0) {
-      removePlayer(id); // HPが0のプレイヤーを削除
+      removePlayer(id);
     }
   }
 
@@ -306,7 +322,6 @@ function setupEventListeners() {
     }
   });
 
-  // 復活ボタンのクリックイベント
   respawnButton.addEventListener('click', () => {
     respawnPlayer();
   });
