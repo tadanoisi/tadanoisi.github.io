@@ -1,5 +1,5 @@
 import { MAP_SIZE, bombs, walls, database } from './game.js';
-import { ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"; // Firebaseのrefとsetを直接インポート
+import { ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
 export class Player {
   constructor(x, y, id, isMe, updateHUD) {
@@ -17,7 +17,7 @@ export class Player {
     this.isDamaged = false;
     this.canPunch = true; // パンチ可能かどうかを示すフラグ
     this.direction = 'right'; // 初期方向を右に設定
-    this.punchDistance = 3; // パンチで爆弾を飛ばせるマス数（デフォルトは3マス）
+    this.punchDistance = 4; // パンチで爆弾を飛ばせるマス数（4マスに変更）
     this.render();
   }
 

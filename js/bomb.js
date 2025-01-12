@@ -1,5 +1,5 @@
 import { remove, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs, walls } from './game.js';
+import { database, MAP_SIZE, bombs, walls, players } from './game.js';
 
 const explosionPool = [];
 
@@ -46,6 +46,43 @@ export class Bomb {
       Object.values(bombs).some((b) => b.x === newX && b.y === newY && b.id !== this.id)
     ) {
       return; // 移動できない場合は停止
+    }
+
+    // 他のプレイヤーに当たったか確認
+    const hitPlayer = Object.values(players).find(
+      (p) => p.x === newX && p.y === newY
+    );
+
+    if (hitPlayer) {
+      // プレイヤーを行動不能にする
+      hitPlayer.stun();
+
+      // 爆弾を進行方向の隣のマスに移動させる
+      const directions = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 },
+      };
+
+      const move = directions[this.player.direction];
+      if (move) {
+        const nextX = newX + move.x;
+        const nextY = newY + move.y;
+
+        // 移動先が壁や他の爆弾でないか確認
+        if (
+          nextX >= 0 &&
+          nextX < MAP_SIZE &&
+          nextY >= 0 &&
+          nextY < MAP_SIZE &&
+          !walls.has(`${nextX},${nextY}`) &&
+          !Object.values(bombs).some((b) => b.x === nextX && b.y === nextY)
+        ) {
+          newX = nextX;
+          newY = nextY;
+        }
+      }
     }
 
     // 爆弾の位置を更新

@@ -23,11 +23,11 @@ const bombCountDisplay = document.getElementById('bomb-count');
 const respawnButton = document.getElementById('respawn-button');
 export const MAP_SIZE = 25; // マップのサイズ
 export const walls = new Set(); // 壁の位置を管理するセット
-let player; // プレイヤーオブジェクト
-let players = {}; // 他のプレイヤーを管理するオブジェクト
+export let players = {}; // 他のプレイヤーを管理するオブジェクト
 export const bombs = {}; // 爆弾を管理するオブジェクト
 
 const playerId = `player_${Math.floor(Math.random() * 1000)}`; // プレイヤーIDをランダムに生成
+let player; // プレイヤーオブジェクトを保持する変数
 
 // ステータス変更用のUI要素を取得
 const hpInput = document.getElementById('hp-input');

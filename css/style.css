@@ -1,3 +1,4 @@
+/* ゲーム全体のスタイル */
 #hud {
   position: absolute;
   top: 60px;
@@ -48,6 +49,7 @@
   background-color: #0056b3;
 }
 
+/* ゲームグリッドのスタイル */
 #game {
   display: grid;
   grid-template-columns: repeat(25, 20px);
@@ -61,6 +63,7 @@
   margin-right: 0;
 }
 
+/* セルのスタイル */
 .cell {
   width: 20px;
   height: 20px;
@@ -69,10 +72,12 @@
   position: relative;
 }
 
+/* 壁のスタイル */
 .wall {
   background-color: #666;
 }
 
+/* プレイヤーのスタイル */
 .player {
   background-color: red;
   z-index: 10;
@@ -82,23 +87,36 @@
   border: 2px solid blue;
 }
 
+/* 自分のプレイヤーのスタイル */
 .my-player {
   background-color: green;
 }
 
+/* 行動不能状態のスタイル */
+.stunned {
+  filter: brightness(0.5); /* プレイヤーを暗くする */
+  animation: shake 0.1s infinite; /* 震えるアニメーション */
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
+/* 爆弾のスタイル */
 .bomb {
   background-color: black;
   z-index: 5;
   position: absolute;
   width: 100%;
   height: 100%;
+  transition: opacity 0.3s ease-in-out; /* スムーズな点滅アニメーション */
 }
 
-@keyframes explosion {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
-}
-
+/* 爆発エフェクトのスタイル */
 .explosion {
   animation: explosion 0.3s ease-out forwards;
   position: absolute;
@@ -108,6 +126,28 @@
   z-index: 15;
 }
 
+@keyframes explosion {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* パンチエフェクトのスタイル */
+.punch-effect {
+  animation: punch 0.3s ease-out forwards;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: yellow;
+  z-index: 20;
+  border-radius: 50%;
+}
+
+@keyframes punch {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* プレイヤーリストのスタイル */
 #player-list {
   position: absolute;
   top: 10px;
@@ -151,28 +191,4 @@
 
 #respawn-button:hover {
   background-color: #0056b3;
-}
-
-@keyframes punch {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.5); opacity: 0; }
-}
-
-.punch-effect {
-  animation: punch 0.3s ease-out forwards;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background-color: yellow;
-  z-index: 20;
-  border-radius: 50%;
-}
-
-.bomb {
-  background-color: black;
-  z-index: 5;
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  transition: opacity 0.3s ease-in-out; /* スムーズな点滅アニメーション */
 }
