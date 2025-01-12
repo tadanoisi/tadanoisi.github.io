@@ -21,13 +21,13 @@ const hpDisplay = document.getElementById('hp');
 const firePowerDisplay = document.getElementById('fire-power');
 const bombCountDisplay = document.getElementById('bomb-count');
 const respawnButton = document.getElementById('respawn-button');
-export const MAP_SIZE = 25;
-export const walls = new Set();
-let player;
-let players = {};
-export const bombs = {};
+export const MAP_SIZE = 25; // マップのサイズ
+export const walls = new Set(); // 壁の位置を管理するセット
+let player; // プレイヤーオブジェクト
+let players = {}; // 他のプレイヤーを管理するオブジェクト
+export const bombs = {}; // 爆弾を管理するオブジェクト
 
-const playerId = `player_${Math.floor(Math.random() * 1000)}`;
+const playerId = `player_${Math.floor(Math.random() * 1000)}`; // プレイヤーIDをランダムに生成
 
 // ステータス変更用のUI要素を取得
 const hpInput = document.getElementById('hp-input');
@@ -334,10 +334,11 @@ function setupEventListeners() {
       let newX = player.x;
       let newY = player.y;
       switch (e.key) {
-        case 'ArrowUp': newY--; break;
-        case 'ArrowDown': newY++; break;
-        case 'ArrowLeft': newX--; break;
-        case 'ArrowRight': newX++; break;
+        case 'ArrowUp': newY--; player.updateDirection('up'); break;
+        case 'ArrowDown': newY++; player.updateDirection('down'); break;
+        case 'ArrowLeft': newX--; player.updateDirection('left'); break;
+        case 'ArrowRight': newX++; player.updateDirection('right'); break;
+        case 'v': player.punch(); break; // vキーでパンチ
       }
 
       if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) return;

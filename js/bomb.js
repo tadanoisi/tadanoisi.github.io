@@ -23,14 +23,44 @@ export class Bomb {
     this.y = y;
     this.id = id;
     this.firePower = firePower;
-    this.timer = 3;
+    this.timer = 3; // 爆発までのタイマー
     this.element = null;
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
     this.placedBy = placedBy;
     this.playerId = playerId;
     this.explosionElements = [];
+    this.explosionTimer = null; // 爆発タイマーを保持するプロパティ
+    this.blinkInterval = null; // 点滅アニメーション用のインターバル
     this.render();
+  }
+
+  // 爆弾を指定された位置に移動させるメソッド
+  moveTo(newX, newY) {
+    if (
+      newX < 0 ||
+      newX >= MAP_SIZE ||
+      newY < 0 ||
+      newY >= MAP_SIZE ||
+      walls.has(`${newX},${newY}`) ||
+      Object.values(bombs).some((b) => b.x === newX && b.y === newY && b.id !== this.id)
+    ) {
+      return; // 移動できない場合は停止
+    }
+
+    // 爆弾の位置を更新
+    this.x = newX;
+    this.y = newY;
+    this.render();
+
+    // Firebaseに爆弾の新しい位置を反映
+    set(ref(database, `bombs/${this.id}`), {
+      x: this.x,
+      y: this.y,
+      timer: this.timer,
+      firePower: this.firePower,
+      placedBy: this.placedBy,
+    });
   }
 
   render() {
@@ -48,24 +78,53 @@ export class Bomb {
       return;
     }
 
+    if (this.element) {
+      this.element.remove();
+    }
+
     this.element = document.createElement('div');
     this.element.classList.add('bomb');
     cell.appendChild(this.element);
 
-    setTimeout(() => {
-      this.explode();
-      remove(ref(database, `bombs/${this.id}`))
-        .then(() => {
-          console.log('Bomb removed successfully:', this.id);
-          delete bombs[this.id];
-          if (this.placedBy === this.playerId) {
-            this.player.bombExploded();
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to remove bomb:', error);
-        });
-    }, this.timer * 1000);
+    // 爆発タイマーが既に設定されていない場合のみタイマーを設定
+    if (!this.explosionTimer) {
+      this.explosionTimer = setTimeout(() => {
+        this.explode();
+        remove(ref(database, `bombs/${this.id}`))
+          .then(() => {
+            console.log('Bomb removed successfully:', this.id);
+            delete bombs[this.id];
+            if (this.placedBy === this.playerId) {
+              this.player.bombExploded();
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to remove bomb:', error);
+          });
+      }, this.timer * 1000);
+
+      // 爆発前に点滅アニメーションを開始
+      this.startBlinkAnimation();
+    }
+  }
+
+  // 爆発前に点滅アニメーションを開始するメソッド
+  startBlinkAnimation() {
+    let blinkCount = 0;
+    const blinkDuration = 500; // 点滅の間隔（ミリ秒）
+
+    this.blinkInterval = setInterval(() => {
+      if (this.element) {
+        this.element.style.opacity = this.element.style.opacity === '0.5' ? '1' : '0.5';
+        blinkCount++;
+
+        // 点滅を3回繰り返したらアニメーションを停止
+        if (blinkCount >= 6) {
+          clearInterval(this.blinkInterval);
+          this.blinkInterval = null;
+        }
+      }
+    }, blinkDuration);
   }
 
   explode() {
@@ -145,6 +204,18 @@ export class Bomb {
         element.remove();
       }
     });
+
+    // 爆発タイマーをクリア
+    if (this.explosionTimer) {
+      clearTimeout(this.explosionTimer);
+      this.explosionTimer = null;
+    }
+
+    // 点滅アニメーションをクリア
+    if (this.blinkInterval) {
+      clearInterval(this.blinkInterval);
+      this.blinkInterval = null;
+    }
   }
 }
 
