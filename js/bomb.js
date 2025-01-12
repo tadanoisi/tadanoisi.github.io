@@ -1,5 +1,5 @@
 import { remove, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs, walls, items, itemManager } from './game.js';
+import { database, MAP_SIZE, bombs, walls } from './game.js';
 
 const explosionPool = [];
 
@@ -18,14 +18,13 @@ function releaseExplosionElement(explosionElement) {
 }
 
 export class Bomb {
-  constructor(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy, playerId) {
+  constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     this.x = x;
     this.y = y;
     this.id = id;
     this.firePower = firePower;
     this.timer = 3;
     this.element = null;
-    this.blocks = blocks;
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
     this.placedBy = placedBy;
@@ -94,12 +93,6 @@ export class Bomb {
         }
 
         this.showExplosionEffect(explosionX, explosionY);
-
-        if (this.blocks.has(`${explosionX},${explosionY}`)) {
-          this.destroyBlock(explosionX, explosionY);
-          break;
-        }
-
         this.checkPlayerDamage(explosionX, explosionY);
       }
     });
@@ -142,29 +135,6 @@ export class Bomb {
     }, 10);
   }
 
-  destroyBlock(x, y) {
-    const gameDiv = document.getElementById('game');
-    if (!gameDiv) {
-      console.error('Game div not found!');
-      return;
-    }
-
-    const cellIndex = y * MAP_SIZE + x;
-    const cell = gameDiv.children[cellIndex];
-
-    if (!cell) {
-      console.error('Cell not found at:', x, y);
-      return;
-    }
-
-    // ブロックを削除
-    cell.classList.remove('block');
-    this.blocks.delete(`${x},${y}`);
-
-    // アイテムを必ず生成
-    itemManager.generateItem(x, y); // 必ずアイテムを生成
-  }
-
   remove() {
     if (this.element && this.element.parentNode) {
       this.element.remove();
@@ -178,8 +148,7 @@ export class Bomb {
   }
 }
 
-// BombManagerの機能をBombクラスに統合
-export function setupBombManager(blocks, checkPlayerDamage, player) {
+export function setupBombManager(checkPlayerDamage, player) {
   onValue(ref(database, 'bombs'), (snapshot) => {
     const bombsData = snapshot.val();
     if (!bombsData) return;
@@ -196,7 +165,7 @@ export function setupBombManager(blocks, checkPlayerDamage, player) {
     for (const id in bombsData) {
       const { x, y, timer, firePower, placedBy } = bombsData[id];
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy);
+        bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy);
       }
     }
   });

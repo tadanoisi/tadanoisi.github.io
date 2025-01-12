@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebas
 import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { Player } from './player.js';
 import { Bomb, setupBombManager } from './bomb.js';
-import { ItemManager } from './itemManager.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCdwZ1i8yOhT2WFL540DECEhcllnAKEyrg",
@@ -21,23 +20,14 @@ const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
 const firePowerDisplay = document.getElementById('fire-power');
 const bombCountDisplay = document.getElementById('bomb-count');
+const respawnButton = document.getElementById('respawn-button'); // 復活ボタン
 export const MAP_SIZE = 25;
 export const walls = new Set();
 let player;
 let players = {};
-let blocks = new Set();
 export const bombs = {};
-export const items = new Map();
-
-export const ITEM_TYPES = {
-  BOMB_UP: 'bomb_up',
-  FIRE_UP: 'fire_up',
-};
 
 const playerId = `player_${Math.floor(Math.random() * 1000)}`;
-
-// ItemManagerを初期化
-export const itemManager = new ItemManager();
 
 function updateHUD() {
   if (player) {
@@ -47,30 +37,25 @@ function updateHUD() {
   }
 }
 
-// プレイヤーリストを更新する関数
 function updatePlayerList(players) {
   const playerListDiv = document.getElementById('player-list');
-  playerListDiv.innerHTML = ''; // リストをクリア
+  playerListDiv.innerHTML = '';
 
   for (const id in players) {
     const player = players[id];
 
-    // プレイヤーリストのアイテムを作成
     const playerItem = document.createElement('div');
     playerItem.classList.add('player-list-item');
 
-    // プレイヤーの色を表示
     const playerColor = document.createElement('div');
     playerColor.classList.add('player-color');
-    playerColor.style.backgroundColor = player.isMe ? 'green' : 'red'; // 自分は緑、他人は赤
+    playerColor.style.backgroundColor = player.isMe ? 'green' : 'red';
     playerItem.appendChild(playerColor);
 
-    // プレイヤーの名前を表示
     const playerName = document.createElement('span');
-    playerName.textContent = `Player ${id}`; // プレイヤーIDを表示
+    playerName.textContent = `Player ${id}`;
     playerItem.appendChild(playerName);
 
-    // プレイヤーのHPを表示
     const playerHP = document.createElement('span');
     playerHP.textContent = ` (HP: ${player.hp})`;
     playerItem.appendChild(playerHP);
@@ -79,55 +64,13 @@ function updatePlayerList(players) {
   }
 }
 
-function generateBlocks() {
-  const blocksToSave = new Set();
-
-  for (let y = 0; y < MAP_SIZE; y++) {
-    for (let x = 0; x < MAP_SIZE; x++) {
-      // 壁の位置にはブロックを生成しない
-      if (x === 0 || y === 0 || x === MAP_SIZE - 1 || y === MAP_SIZE - 1) {
-        continue;
-      }
-
-      // 固定壁の位置にはブロックを生成しない
-      if (x % 2 === 0 && y % 2 === 0) {
-        continue;
-      }
-
-      // プレイヤーの開始位置周辺を空ける
-      const isNearStart = (x >= 1 && x <= 3 && y >= 1 && y <= 3);
-      if (isNearStart) {
-        continue;
-      }
-
-      // ステージの角のマスから周囲1マスはブロックを配置しない
-      const isNearCorner =
-        (x === 1 && y === 1) || // 左上
-        (x === 1 && y === MAP_SIZE - 2) || // 左下
-        (x === MAP_SIZE - 2 && y === 1) || // 右上
-        (x === MAP_SIZE - 2 && y === MAP_SIZE - 2); // 右下
-      if (isNearCorner) {
-        continue;
-      }
-
-      // ランダム生成（30%の確率でブロックを生成）
-      if (Math.random() < 0.3) {
-        blocksToSave.add(`${x},${y}`);
-      }
-    }
-  }
-
-  // Firebaseにブロックの位置を保存
-  set(ref(database, 'blocks'), Array.from(blocksToSave));
-}
-
-function loadBlocks(callback) {
-  onValue(ref(database, 'blocks'), (snapshot) => {
-    const blocksData = snapshot.val();
-    if (blocksData) {
-      callback(new Set(blocksData));
-    }
-  });
+function getRandomPosition() {
+  let x, y;
+  do {
+    x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1; // 1からMAP_SIZE-2の範囲でランダム
+    y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1; // 1からMAP_SIZE-2の範囲でランダム
+  } while (isWallOrBlock(x, y) || isOccupied(x, y)); // 壁や他のプレイヤーと重ならないようにする
+  return { x, y };
 }
 
 function initMap() {
@@ -152,49 +95,33 @@ function initMap() {
     }
   }
 
-  loadBlocks((loadedBlocks) => {
-    blocks = loadedBlocks;
-
-    for (let y = 0; y < MAP_SIZE; y++) {
-      for (let x = 0; x < MAP_SIZE; x++) {
-        const cellIndex = y * MAP_SIZE + x;
-        const cell = gameDiv.children[cellIndex];
-
-        if (blocks.has(`${x},${y}`)) {
-          cell.classList.add('block');
-        }
-      }
-    }
-
-    initPlayer();
-    setupEventListeners();
-  });
+  initPlayer();
+  setupEventListeners();
 }
 
 function initPlayer() {
-  const startX = 1;
-  const startY = 1;
+  const { x, y } = getRandomPosition(); // ランダムな位置を取得
 
-  if (isWallOrBlock(startX, startY)) {
+  if (isWallOrBlock(x, y)) {
     console.error('Player starting position is blocked!');
     return;
   }
 
-  const cellIndex = startY * MAP_SIZE + startX;
+  const cellIndex = y * MAP_SIZE + x;
   const cell = gameDiv.children[cellIndex];
   if (!cell) {
-    console.error('Cell not found at:', startX, startY);
+    console.error('Cell not found at:', x, y);
     return;
   }
 
-  player = new Player(startX, startY, playerId, true, updateHUD);
+  player = new Player(x, y, playerId, true, updateHUD);
   player.render();
-  set(ref(database, `players/${playerId}`), { x: startX, y: startY, hp: player.hp }); // HPをFirebaseに保存
+  set(ref(database, `players/${playerId}`), { x, y, hp: player.hp });
   updateHUD();
 }
 
 function isWallOrBlock(x, y) {
-  return walls.has(`${x},${y}`) || blocks.has(`${x},${y}`);
+  return walls.has(`${x},${y}`);
 }
 
 function isOccupied(x, y) {
@@ -215,38 +142,59 @@ function isBombAt(x, y) {
   return false;
 }
 
-function checkItemPickup(x, y) {
-  const itemType = itemManager.pickupItem(x, y, playerId); // ローカルでアイテムを取得
-  if (itemType) {
-    if (itemType === ITEM_TYPES.BOMB_UP) {
-      player.maxBombs++;
-    } else if (itemType === ITEM_TYPES.FIRE_UP) {
-      player.firePower++;
-    }
-    updateHUD();
-  }
-}
-
 function checkPlayerDamage(x, y) {
   if (player.x === x && player.y === y && !player.isDamaged) {
     player.isDamaged = true;
     player.updateHP(player.hp - 1);
 
     if (player.hp <= 0) {
-      alert('Game Over!');
-      window.location.reload();
+      removePlayer(playerId); // HPが0になったプレイヤーを削除
+      respawnButton.style.display = 'block'; // 復活ボタンを表示
+      alert('You died! Press the respawn button to come back.');
+    } else {
+      set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp });
     }
-
-    // HPをFirebaseに保存
-    set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp });
 
     setTimeout(() => {
       player.isDamaged = false;
     }, 1000);
 
-    // プレイヤーリストを更新
     updatePlayerList(players);
   }
+}
+
+function removePlayer(playerId) {
+  remove(ref(database, `players/${playerId}`))
+    .then(() => {
+      console.log('Player removed successfully:', playerId);
+    })
+    .catch((error) => {
+      console.error('Failed to remove player:', error);
+    });
+}
+
+function respawnPlayer() {
+  // 古いプレイヤーを削除
+  if (player) {
+    player.remove(); // ローカルのプレイヤー表示を削除
+  }
+
+  // 古いプレイヤーデータをFirebaseから削除
+  remove(ref(database, `players/${playerId}`))
+    .then(() => {
+      console.log('Old player data removed successfully:', playerId);
+
+      // 新しいプレイヤーを生成
+      const { x, y } = getRandomPosition(); // ランダムな位置を取得
+      player = new Player(x, y, playerId, true, updateHUD);
+      player.render();
+      set(ref(database, `players/${playerId}`), { x, y, hp: player.hp });
+      respawnButton.style.display = 'none'; // 復活ボタンを非表示
+      updateHUD();
+    })
+    .catch((error) => {
+      console.error('Failed to remove old player data:', error);
+    });
 }
 
 onValue(ref(database, 'players'), (snapshot) => {
@@ -268,10 +216,13 @@ onValue(ref(database, 'players'), (snapshot) => {
       players[id] = new Player(x, y, id, id === playerId, updateHUD);
     }
     players[id].updatePosition(x, y);
-    players[id].updateHP(hp); // HPを更新
+    players[id].updateHP(hp);
+
+    if (hp <= 0) {
+      removePlayer(id); // HPが0のプレイヤーを削除
+    }
   }
 
-  // プレイヤーリストを更新
   updatePlayerList(players);
 });
 
@@ -292,7 +243,7 @@ onValue(ref(database, 'bombs'), (snapshot) => {
     const { x, y, timer, firePower, placedBy } = bombsData[id];
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy, playerId);
+        bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
       }
     } else {
       console.error('Invalid bomb position:', x, y);
@@ -301,62 +252,9 @@ onValue(ref(database, 'bombs'), (snapshot) => {
   }
 });
 
-// アイテムの変更を監視
-onValue(ref(database, 'items'), (snapshot) => {
-  const itemsData = snapshot.val();
-  if (!itemsData) {
-    // アイテムがすべて削除された場合
-    items.clear();
-    const itemElements = document.querySelectorAll('.item');
-    itemElements.forEach((itemElement) => itemElement.remove());
-    return;
-  }
-
-  const currentItemKeys = new Set(Object.keys(itemsData));
-
-  // 削除されたアイテムを処理
-  for (const key of items.keys()) {
-    if (!currentItemKeys.has(key)) {
-      items.delete(key);
-      const [x, y] = key.split(',').map(Number);
-      const cellIndex = y * MAP_SIZE + x;
-      const cell = gameDiv.children[cellIndex];
-      if (cell) {
-        const itemElement = cell.querySelector('.item');
-        if (itemElement) {
-          itemElement.remove();
-        }
-      }
-    }
-  }
-
-  // 新しいアイテムを追加
-  for (const key in itemsData) {
-    const { type } = itemsData[key];
-    if (!items.has(key)) {
-      items.set(key, { type });
-
-      const [x, y] = key.split(',').map(Number);
-      const cellIndex = y * MAP_SIZE + x;
-      const cell = gameDiv.children[cellIndex];
-      if (cell) {
-        const itemElement = document.createElement('div');
-        itemElement.classList.add('item', type);
-        cell.appendChild(itemElement);
-      }
-    }
-  }
-});
-
 window.onbeforeunload = () => {
   remove(ref(database, `players/${playerId}`));
 };
-
-onValue(ref(database, 'blocks'), (snapshot) => {
-  if (!snapshot.exists()) {
-    generateBlocks();
-  }
-});
 
 function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
@@ -376,8 +274,7 @@ function setupEventListeners() {
       if (isBombAt(newX, newY)) return;
 
       player.updatePosition(newX, newY);
-      set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp }); // HPをFirebaseに保存
-      checkItemPickup(newX, newY);
+      set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp });
     }
   });
 
@@ -408,10 +305,13 @@ function setupEventListeners() {
       }
     }
   });
+
+  // 復活ボタンのクリックイベント
+  respawnButton.addEventListener('click', () => {
+    respawnPlayer();
+  });
 }
 
-// BombManagerの設定を追加
-setupBombManager(blocks, checkPlayerDamage, player);
+setupBombManager(checkPlayerDamage, player);
 
-// ゲームを初期化
 initMap();
