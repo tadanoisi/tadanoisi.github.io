@@ -103,6 +103,15 @@ function isOccupied(x, y) {
   return false;
 }
 
+function isBombAt(x, y) {
+  for (const id in bombs) {
+    if (bombs[id].x === x && bombs[id].y === y) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function checkItemPickup(x, y) {
   const itemKey = `${x},${y}`;
   if (items.has(itemKey)) {
@@ -212,6 +221,7 @@ document.addEventListener('keydown', (e) => {
     if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) return;
     if (isWallOrBlock(newX, newY)) return;
     if (isOccupied(newX, newY)) return;
+    if (isBombAt(newX, newY)) return;
 
     player.updatePosition(newX, newY);
     set(ref(database, `players/${playerId}`), { x: newX, y: newY });
