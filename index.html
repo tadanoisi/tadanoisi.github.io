@@ -10,20 +10,19 @@
     <div id="hp">HP: 3</div>
     <div id="fire-power">Fire Power: 1</div>
     <div id="bomb-count">Bombs: 1/1</div>
+    <!-- ステータス変更用のUI -->
+    <div id="status-controls">
+      <label for="hp-input">HP:</label>
+      <input type="number" id="hp-input" min="1" max="10" value="3">
+      <label for="bomb-count-input">Bombs:</label>
+      <input type="number" id="bomb-count-input" min="1" max="10" value="1">
+      <label for="fire-power-input">Fire Power:</label>
+      <input type="number" id="fire-power-input" min="1" max="10" value="1">
+      <button id="apply-status">Apply</button>
+    </div>
   </div>
   <div id="player-list"></div>
   <div id="game"></div>
   <button id="respawn-button" style="display: none;">Respawn</button>
-
-  <!-- ステータス変更用のUIを追加 -->
-  <div id="status-controls">
-    <label for="hp-input">HP:</label>
-    <input type="number" id="hp-input" min="1" max="10" value="3">
-    <label for="bomb-count-input">Bombs:</label>
-    <input type="number" id="bomb-count-input" min="1" max="10" value="1">
-    <label for="fire-power-input">Fire Power:</label>
-    <input type="number" id="fire-power-input" min="1" max="10" value="1">
-    <button id="apply-status">Apply</button>
-  </div>
 </body>
 </html>

@@ -35,6 +35,9 @@ const bombCountInput = document.getElementById('bomb-count-input');
 const firePowerInput = document.getElementById('fire-power-input');
 const applyStatusButton = document.getElementById('apply-status');
 
+/**
+ * HUDを更新する関数
+ */
 function updateHUD() {
   if (player) {
     hpDisplay.textContent = `HP: ${player.hp}`;
@@ -43,6 +46,10 @@ function updateHUD() {
   }
 }
 
+/**
+ * プレイヤーリストを更新する関数
+ * @param {Object} players - プレイヤー情報
+ */
 function updatePlayerList(players) {
   const playerListDiv = document.getElementById('player-list');
   playerListDiv.innerHTML = '';
@@ -70,6 +77,10 @@ function updatePlayerList(players) {
   }
 }
 
+/**
+ * ランダムな位置を取得する関数
+ * @returns {Object} - ランダムな位置 { x, y }
+ */
 function getRandomPosition() {
   let x, y;
   do {
@@ -79,6 +90,9 @@ function getRandomPosition() {
   return { x, y };
 }
 
+/**
+ * マップを初期化する関数
+ */
 function initMap() {
   gameDiv.innerHTML = '';
   gameDiv.style.gridTemplateColumns = `repeat(${MAP_SIZE}, 20px)`;
@@ -105,6 +119,9 @@ function initMap() {
   setupEventListeners();
 }
 
+/**
+ * プレイヤーを初期化する関数
+ */
 function initPlayer() {
   const { x, y } = getRandomPosition();
 
@@ -122,14 +139,32 @@ function initPlayer() {
 
   player = new Player(x, y, playerId, true, updateHUD);
   player.render();
-  set(ref(database, `players/${playerId}`), { x, y, hp: player.hp });
+  set(ref(database, `players/${playerId}`), { x, y, hp: player.hp })
+    .then(() => {
+      console.log('Player initialized successfully');
+    })
+    .catch((error) => {
+      console.error('Failed to initialize player:', error);
+    });
   updateHUD();
 }
 
+/**
+ * 指定された位置が壁またはブロックかどうかを確認する関数
+ * @param {number} x - X座標
+ * @param {number} y - Y座標
+ * @returns {boolean} - 壁またはブロックの場合 true
+ */
 function isWallOrBlock(x, y) {
   return walls.has(`${x},${y}`);
 }
 
+/**
+ * 指定された位置が他のプレイヤーに占有されているかどうかを確認する関数
+ * @param {number} x - X座標
+ * @param {number} y - Y座標
+ * @returns {boolean} - 占有されている場合 true
+ */
 function isOccupied(x, y) {
   for (const id in players) {
     if (players[id].x === x && players[id].y === y) {
@@ -139,6 +174,12 @@ function isOccupied(x, y) {
   return false;
 }
 
+/**
+ * 指定された位置に爆弾があるかどうかを確認する関数
+ * @param {number} x - X座標
+ * @param {number} y - Y座標
+ * @returns {boolean} - 爆弾がある場合 true
+ */
 function isBombAt(x, y) {
   for (const id in bombs) {
     if (bombs[id].x === x && bombs[id].y === y) {
@@ -148,6 +189,11 @@ function isBombAt(x, y) {
   return false;
 }
 
+/**
+ * プレイヤーがダメージを受けたかどうかを確認する関数
+ * @param {number} x - X座標
+ * @param {number} y - Y座標
+ */
 function checkPlayerDamage(x, y) {
   if (player.x === x && player.y === y && !player.isDamaged) {
     player.isDamaged = true;
@@ -169,6 +215,10 @@ function checkPlayerDamage(x, y) {
   }
 }
 
+/**
+ * プレイヤーを削除する関数
+ * @param {string} playerId - プレイヤーID
+ */
 function removePlayer(playerId) {
   remove(ref(database, `players/${playerId}`))
     .then(() => {
@@ -179,6 +229,9 @@ function removePlayer(playerId) {
     });
 }
 
+/**
+ * プレイヤーをリスポーンさせる関数
+ */
 function respawnPlayer() {
   if (player) {
     player.remove();
@@ -272,6 +325,9 @@ window.onbeforeunload = () => {
   remove(ref(database, `players/${playerId}`));
 };
 
+/**
+ * イベントリスナーを設定する関数
+ */
 function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (player.isMe) {
