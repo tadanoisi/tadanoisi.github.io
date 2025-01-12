@@ -19,11 +19,24 @@ export class Player {
 
   render() {
     const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
     const cellIndex = this.y * MAP_SIZE + this.x;
     const cell = gameDiv.children[cellIndex];
+    if (!cell) {
+      console.error('Cell not found at:', this.x, this.y);
+      return;
+    }
+
+    // 既存のプレイヤー要素を削除
     if (this.element) {
       this.element.remove();
     }
+
+    // 新しいプレイヤー要素を作成
     this.element = document.createElement('div');
     this.element.classList.add('player');
     if (this.isMe) {

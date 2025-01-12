@@ -1,4 +1,4 @@
-import { remove, ref } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
+import { remove, ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { database, MAP_SIZE, bombs, walls, ITEM_TYPES, items } from './game.js';
 
 const explosionPool = [];
@@ -29,7 +29,7 @@ export class Bomb {
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
     this.placedBy = placedBy;
-    this.playerId = playerId; // playerId を受け取る
+    this.playerId = playerId;
     this.explosionElements = [];
     this.render();
   }
@@ -59,8 +59,8 @@ export class Bomb {
         .then(() => {
           console.log('Bomb removed successfully:', this.id);
           delete bombs[this.id];
-          if (this.placedBy === this.playerId) { // playerId を正しく参照
-            this.player.bombExploded(); // 爆弾が爆発したときに bombCount を減らす
+          if (this.placedBy === this.playerId) {
+            this.player.bombExploded();
           }
         })
         .catch((error) => {
@@ -160,12 +160,18 @@ export class Bomb {
     cell.classList.remove('block');
     this.blocks.delete(`${x},${y}`);
 
+    // アイテムをランダムで生成
     const itemType = Math.random() < 0.5 ? ITEM_TYPES.BOMB_UP : ITEM_TYPES.FIRE_UP;
-    items.set(`${x},${y}`, { type: itemType });
+    const itemKey = `${x},${y}`;
 
-    const itemElement = document.createElement('div');
-    itemElement.classList.add('item', itemType);
-    cell.appendChild(itemElement);
+    // Firebaseにアイテムを保存
+    set(ref(database, `items/${itemKey}`), { type: itemType })
+      .then(() => {
+        console.log('Item added successfully:', itemKey);
+      })
+      .catch((error) => {
+        console.error('Failed to add item:', error);
+      });
   }
 
   remove() {
