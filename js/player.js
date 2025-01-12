@@ -31,12 +31,10 @@ export class Player {
       return;
     }
 
-    // 既存のプレイヤー要素を削除
     if (this.element) {
       this.element.remove();
     }
 
-    // 新しいプレイヤー要素を作成
     this.element = document.createElement('div');
     this.element.classList.add('player');
     if (this.isMe) {

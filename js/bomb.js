@@ -1,5 +1,5 @@
-import { remove, ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
-import { database, MAP_SIZE, bombs, walls, ITEM_TYPES, items } from './game.js';
+import { remove, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
+import { database, MAP_SIZE, bombs, walls, items, itemManager } from './game.js';
 
 const explosionPool = [];
 
@@ -157,21 +157,12 @@ export class Bomb {
       return;
     }
 
+    // ブロックを削除
     cell.classList.remove('block');
     this.blocks.delete(`${x},${y}`);
 
-    // アイテムをランダムで生成
-    const itemType = Math.random() < 0.5 ? ITEM_TYPES.BOMB_UP : ITEM_TYPES.FIRE_UP;
-    const itemKey = `${x},${y}`;
-
-    // Firebaseにアイテムを保存
-    set(ref(database, `items/${itemKey}`), { type: itemType })
-      .then(() => {
-        console.log('Item added successfully:', itemKey);
-      })
-      .catch((error) => {
-        console.error('Failed to add item:', error);
-      });
+    // アイテムを必ず生成
+    itemManager.generateItem(x, y); // 必ずアイテムを生成
   }
 
   remove() {
@@ -185,4 +176,28 @@ export class Bomb {
       }
     });
   }
+}
+
+// BombManagerの機能をBombクラスに統合
+export function setupBombManager(blocks, checkPlayerDamage, player) {
+  onValue(ref(database, 'bombs'), (snapshot) => {
+    const bombsData = snapshot.val();
+    if (!bombsData) return;
+
+    const currentBombIds = new Set(Object.keys(bombsData));
+
+    for (const id in bombs) {
+      if (!currentBombIds.has(id)) {
+        bombs[id].remove();
+        delete bombs[id];
+      }
+    }
+
+    for (const id in bombsData) {
+      const { x, y, timer, firePower, placedBy } = bombsData[id];
+      if (!bombs[id]) {
+        bombs[id] = new Bomb(x, y, id, firePower, blocks, checkPlayerDamage, player, placedBy);
+      }
+    }
+  });
 }
