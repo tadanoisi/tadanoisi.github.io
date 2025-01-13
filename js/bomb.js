@@ -53,9 +53,9 @@ export class Bomb {
       (p) => p.x === newX && p.y === newY
     );
 
-    if (hitPlayer && hitPlayer.stun) {
-      // プレイヤーを行動不能にする
-      hitPlayer.stun();
+    if (hitPlayer) {
+      console.log(`[BOMB] Player ${hitPlayer.id} hit by bomb!`); // プレイヤーが爆弾に当たったログ
+      hitPlayer.stun(); // プレイヤーをスタン状態にする
 
       // 爆弾を進行方向の隣のマスに移動させる
       const directions = {
@@ -128,6 +128,7 @@ export class Bomb {
     // 爆発タイマーが既に設定されていない場合のみタイマーを設定
     if (!this.explosionTimer) {
       this.explosionTimer = setTimeout(() => {
+        console.log(`[BOMB] Bomb ${this.id} exploded!`); // 爆発ログ
         this.explode();
         remove(ref(database, `bombs/${this.id}`))
           .then(() => {

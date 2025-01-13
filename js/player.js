@@ -18,8 +18,9 @@ export class Player {
     this.canPunch = true; // パンチ可能かどうかを示すフラグ
     this.direction = 'right'; // 初期方向を右に設定
     this.punchDistance = 4; // パンチで爆弾を飛ばせるマス数（4マスに変更）
-    this.isStunned = false; // 行動不能状態かどうかを示すフラグ
+    this.isStunned = false; // スタン状態かどうかを示すフラグ
     this.isDead = false; // 死亡状態を管理するフラグ
+    this.stunTimeout = null; // スタン状態のタイムアウトを管理する変数
     this.render();
   }
 
@@ -52,7 +53,7 @@ export class Player {
 
   // パンチを実行するメソッド
   punch() {
-    if (!this.canPunch || this.isDead) return; // クールダウン中または死亡状態ならパンチできない
+    if (this.isDead || this.isStunned) return; // 死亡状態またはスタン状態ならパンチできない
 
     const directions = {
       up: { x: 0, y: -1 },
@@ -89,10 +90,6 @@ export class Player {
 
       // 爆弾の位置を更新
       bomb.moveTo(newX, newY);
-      this.canPunch = false; // クールダウンを開始
-      setTimeout(() => {
-        this.canPunch = true; // 1秒後にクールダウン終了
-      }, 1000);
 
       // パンチのエフェクトを表示
       this.showPunchEffect();
@@ -117,23 +114,37 @@ export class Player {
     }, 300); // 0.3秒後にエフェクトを削除
   }
 
-  // プレイヤーを行動不能にするメソッド
+  // プレイヤーをスタン状態にするメソッド
   stun() {
-    if (this.isStunned || this.isDead) return; // 既に行動不能または死亡状態の場合は何もしない
+    if (this.isStunned || this.isDead) return; // 既にスタン状態または死亡状態の場合は何もしない
 
+    console.log(`[STUN] Player ${this.id} is now stunned!`); // スタン状態開始ログ
     this.isStunned = true;
     this.element.classList.add('stunned'); // スタン状態を視覚的に表現
 
     // Firebaseにスタン状態を反映
-    set(ref(database, `players/${this.id}/isStunned`), true);
+    set(ref(database, `players/${this.id}`), { x: this.x, y: this.y, hp: this.hp, isStunned: true })
+      .catch((error) => {
+        console.error('Failed to update player stun status:', error);
+      });
 
-    setTimeout(() => {
-      this.isStunned = false;
-      this.element.classList.remove('stunned'); // スタン状態を解除
+    // 5秒後にスタン状態を解除
+    if (this.stunTimeout) {
+      clearTimeout(this.stunTimeout); // 既存のタイムアウトをクリア
+    }
+    this.stunTimeout = setTimeout(() => {
+      if (this.isStunned) { // スタン状態がまだ有効な場合のみ解除
+        console.log(`[STUN] Player ${this.id} is no longer stunned!`); // スタン状態終了ログ
+        this.isStunned = false;
+        this.element.classList.remove('stunned'); // スタン状態を解除
 
-      // Firebaseにスタン状態を反映
-      set(ref(database, `players/${this.id}/isStunned`), false);
-    }, 1000); // 1秒後に行動不能状態を解除
+        // Firebaseにスタン状態解除を反映
+        set(ref(database, `players/${this.id}`), { x: this.x, y: this.y, hp: this.hp, isStunned: false })
+          .catch((error) => {
+            console.error('Failed to update player stun status:', error);
+          });
+      }
+    }, 1000); // 1秒後にスタン状態を解除
   }
 
   // プレイヤーの向きを更新するメソッド
@@ -180,6 +191,10 @@ export class Player {
   }
 
   updatePosition(x, y) {
+    if (this.isStunned) {
+      console.log(`[STUN] Player ${this.id} is stunned and cannot move!`); // スタン状態中は移動できないログ
+      return; // スタン状態中は位置を更新しない
+    }
     this.x = x;
     this.y = y;
     this.render();
@@ -199,6 +214,7 @@ export class Player {
   }
 
   placeBomb() {
+    if (this.isStunned) return; // スタン状態中は爆弾を設置できない
     if (this.canPlaceBomb() && !this.isDead) {
       this.bombCount++;
       this.updateHUD();

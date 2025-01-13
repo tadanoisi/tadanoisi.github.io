@@ -44,7 +44,7 @@ export function getRandomPosition() {
   do {
     x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
     y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
-  } while (isWallOrBlock(x, y) || isOccupied(x, y));
+  } while (isWallOrBlock(x, y)); // プレイヤー同士の当たり判定をなくすため、isOccupiedを削除
   return { x, y };
 }
 
@@ -56,6 +56,9 @@ function updateHUD() {
     hpDisplay.textContent = `HP: ${player.hp}`;
     firePowerDisplay.textContent = `Fire Power: ${player.firePower}`;
     bombCountDisplay.textContent = `Bombs: ${player.bombCount}/${player.maxBombs}`;
+    if (player.isStunned) {
+      hpDisplay.textContent += ' (STUNNED)';
+    }
   }
 }
 
@@ -166,11 +169,7 @@ function isWallOrBlock(x, y) {
  * @returns {boolean} - 占有されている場合 true
  */
 function isOccupied(x, y) {
-  for (const id in players) {
-    if (players[id].x === x && players[id].y === y) {
-      return true;
-    }
-  }
+  // プレイヤー同士の当たり判定をなくすため、常にfalseを返す
   return false;
 }
 
@@ -278,6 +277,8 @@ onValue(ref(database, 'players'), (snapshot) => {
 
     if (isStunned) {
       players[id].stun();
+    } else {
+      players[id].isStunned = false; // スタン状態でないことを反映
     }
 
     if (hp <= 0) {
@@ -324,6 +325,11 @@ window.onbeforeunload = () => {
 function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (player && player.isMe && !player.isDead) {
+      if (player.isStunned) {
+        console.log(`[STUN] Player ${player.id} is stunned and cannot move!`); // スタン状態中は移動できないログ
+        return; // スタン状態中はすべてのキー入力を無視
+      }
+
       let newX = player.x;
       let newY = player.y;
       switch (e.key) {
@@ -331,22 +337,25 @@ function setupEventListeners() {
         case 'ArrowDown': newY++; player.updateDirection('down'); break;
         case 'ArrowLeft': newX--; player.updateDirection('left'); break;
         case 'ArrowRight': newX++; player.updateDirection('right'); break;
-        case 'v': player.punch(); break; // vキーでパンチ
+        case 'v': 
+          if (!player.isStunned) { // スタン状態中はパンチできない
+            player.punch(); 
+          }
+          break;
       }
 
       if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) return;
       if (isWallOrBlock(newX, newY)) return;
-      if (isOccupied(newX, newY)) return;
       if (isBombAt(newX, newY)) return;
 
       player.updatePosition(newX, newY);
-      set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp });
+      set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp, isStunned: player.isStunned });
     }
   });
 
   let isPlacingBomb = false;
   document.addEventListener('keydown', async (e) => {
-    if (e.key === ' ' && player && player.isMe && player.canPlaceBomb() && !isPlacingBomb && !player.isDead) {
+    if (e.key === ' ' && player && player.isMe && player.canPlaceBomb() && !isPlacingBomb && !player.isDead && !player.isStunned) { // スタン状態中は爆弾を置けない
       isPlacingBomb = true;
       const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
 
