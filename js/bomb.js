@@ -259,6 +259,50 @@ export class Bomb {
   }
 }
 
+export class SplitBomb extends Bomb {
+  constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
+    super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+    this.timer = 3; // 通常のタイマー
+  }
+
+  explode() {
+    super.explode();
+    this.split();
+  }
+
+  split() {
+    const directions = [
+      { x: 1, y: 0 }, { x: -1, y: 0 }, // 右と左
+      { x: 0, y: 1 }, { x: 0, y: -1 }  // 下と上
+    ];
+
+    directions.forEach(dir => {
+      const newX = this.x + dir.x * 2; // 2マス先の位置を計算
+      const newY = this.y + dir.y * 2;
+
+      // マップの範囲内かつ壁でない場合のみ爆弾を設置
+      if (
+        newX >= 0 && newX < MAP_SIZE &&
+        newY >= 0 && newY < MAP_SIZE &&
+        !walls.has(`${newX},${newY}`)
+      ) {
+        const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
+        set(ref(database, `bombs/${bombId}`), {
+          x: newX,
+          y: newY,
+          timer: 1,
+          firePower: 1,
+          placedBy: this.placedBy
+        });
+      }
+    });
+  }
+
+  render() {
+    super.render();
+    this.element.style.backgroundColor = 'pink'; // 色で区別
+  }
+}
 export function setupBombManager(checkPlayerDamage, player) {
   onValue(ref(database, 'bombs'), (snapshot) => {
     const bombsData = snapshot.val();
@@ -276,9 +320,13 @@ export function setupBombManager(checkPlayerDamage, player) {
 
     // 新しい爆弾または更新された爆弾を処理
     for (const id in bombsData) {
-      const { x, y, timer, firePower, placedBy } = bombsData[id];
+      const { x, y, timer, firePower, placedBy, type } = bombsData[id];
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy);
+        if (type === 'split') {
+          bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        } else {
+          bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        }
       } else {
         // 爆弾の位置が更新された場合、ローカルの爆弾オブジェクトを更新
         bombs[id].x = x;

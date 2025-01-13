@@ -49,6 +49,12 @@
   background-color: #0056b3;
 }
 
+#bomb-type {
+  margin-top: 10px;
+  font-size: 14px;
+  color: white;
+}
+
 /* ゲームグリッドのスタイル */
 #game {
   display: grid;

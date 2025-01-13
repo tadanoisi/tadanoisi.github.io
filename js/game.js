@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { Player } from './player.js';
-import { Bomb, setupBombManager } from './bomb.js';
+import { Bomb, SplitBomb, setupBombManager } from './bomb.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCdwZ1i8yOhT2WFL540DECEhcllnAKEyrg",
@@ -20,6 +20,7 @@ const gameDiv = document.getElementById('game');
 const hpDisplay = document.getElementById('hp');
 const firePowerDisplay = document.getElementById('fire-power');
 const bombCountDisplay = document.getElementById('bomb-count');
+const bombTypeDisplay = document.getElementById('bomb-type');
 const respawnButton = document.getElementById('respawn-button');
 export const MAP_SIZE = 25; // マップのサイズ
 export const walls = new Set(); // 壁の位置を管理するセット
@@ -28,6 +29,7 @@ export const bombs = {}; // 爆弾を管理するオブジェクト
 
 const playerId = `player_${Math.floor(Math.random() * 1000)}`; // プレイヤーIDをランダムに生成
 let player; // プレイヤーオブジェクトを保持する変数
+let currentBombType = 'normal'; // 現在の爆弾タイプを管理する変数
 
 // ステータス変更用のUI要素を取得
 const hpInput = document.getElementById('hp-input');
@@ -303,10 +305,14 @@ onValue(ref(database, 'bombs'), (snapshot) => {
   }
 
   for (const id in bombsData) {
-    const { x, y, timer, firePower, placedBy } = bombsData[id];
+    const { x, y, timer, firePower, placedBy, type } = bombsData[id];
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
-        bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        if (type === 'split') {
+          bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        } else {
+          bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        }
       }
     } else {
       console.error('Invalid bomb position:', x, y);
@@ -361,13 +367,16 @@ function setupEventListeners() {
 
       if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
         try {
-          await set(ref(database, `bombs/${bombId}`), {
+          const bombData = {
             x: player.x,
             y: player.y,
             timer: 3,
             firePower: player.firePower,
-            placedBy: playerId
-          });
+            placedBy: playerId,
+            type: currentBombType // 爆弾のタイプを追加
+          };
+
+          await set(ref(database, `bombs/${bombId}`), bombData);
           player.placeBomb();
         } catch (error) {
           console.error('Failed to place bomb:', error);
@@ -384,13 +393,26 @@ function setupEventListeners() {
   respawnButton.addEventListener('click', () => {
     respawnPlayer();
   });
+
+  // 操作方法パネルを閉じる処理
+  document.getElementById('close-controls').addEventListener('click', () => {
+    document.getElementById('controls-panel').style.display = 'none';
+  });
+
+  // キー入力で爆弾タイプを切り替える
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '1') {
+      currentBombType = 'normal';
+      bombTypeDisplay.textContent = 'Bomb Type: Normal';
+      console.log('Switched to normal bomb');
+    } else if (e.key === '2') {
+      currentBombType = 'split';
+      bombTypeDisplay.textContent = 'Bomb Type: Split';
+      console.log('Switched to split bomb');
+    }
+  });
 }
 
 setupBombManager(checkPlayerDamage, player);
-
-// 操作方法パネルを閉じる処理
-document.getElementById('close-controls').addEventListener('click', () => {
-  document.getElementById('controls-panel').style.display = 'none';
-});
 
 initMap();
