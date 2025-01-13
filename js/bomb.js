@@ -126,7 +126,7 @@ export class Bomb {
     cell.appendChild(this.element);
 
     // 爆発タイマーが既に設定されていない場合のみタイマーを設定
-    if (!this.explosionTimer) {
+    if (!this.explosionTimer && this.timer > 0) {
       this.explosionTimer = setTimeout(() => {
         console.log(`[BOMB] Bomb ${this.id} exploded!`); // 爆発ログ
         this.explode();
@@ -414,6 +414,124 @@ export class InvisibleBomb extends Bomb {
   }
 }
 
+export class RemoteBomb extends Bomb {
+  constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
+    super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+    this.isRemote = true; // リモコンバクダンであることを示すフラグ
+    this.warningCount = 0; // 警告回数を管理
+    this.warningInterval = null; // 警告用のインターバル
+    this.isTriggered = false; // 爆発がトリガーされたかどうかを示すフラグ
+  }
+
+  // 爆発タイマーを無効化する
+  render() {
+    const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    const cellIndex = this.y * MAP_SIZE + this.x;
+    const cell = gameDiv.children[cellIndex];
+
+    if (!cell) {
+      console.error('Cell not found at:', this.x, this.y);
+      return;
+    }
+
+    if (this.element) {
+      this.element.remove();
+    }
+
+    this.element = document.createElement('div');
+    this.element.classList.add('bomb');
+    this.element.style.backgroundColor = 'blue'; // リモコンバクダンの色を青に設定
+    cell.appendChild(this.element);
+
+    // 爆発タイマーを無効化
+    if (this.explosionTimer) {
+      clearTimeout(this.explosionTimer);
+      this.explosionTimer = null;
+    }
+  }
+
+  // 警告を表示するメソッド
+  showWarning() {
+    if (this.element) {
+      this.element.style.backgroundColor = this.warningCount % 2 === 0 ? 'red' : 'black';
+      this.warningCount++;
+
+      if (this.warningCount >= 2) {
+        clearInterval(this.warningInterval);
+        this.warningInterval = null;
+        this.explode(); // 2回の警告後に爆発
+      }
+    }
+  }
+
+  // 爆発をトリガーするメソッド
+  triggerExplosion() {
+    if (this.isRemote && !this.isTriggered) {
+      this.isTriggered = true; // トリガー済みにする
+      this.warningInterval = setInterval(() => this.showWarning(), 500); // 0.5秒間隔で警告
+
+      // Firebaseに爆発をトリガーしたことを反映
+      set(ref(database, `bombs/${this.id}/isTriggered`), true)
+        .catch((error) => {
+          console.error('Failed to update bomb trigger status:', error);
+        });
+    }
+  }
+
+  // 爆発処理
+  explode() {
+    const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    const directions = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }, { x: -1, y: 0 },
+      { x: 0, y: 1 }, { x: 0, y: -1 }
+    ];
+
+    directions.forEach((dir) => {
+      for (let i = 0; i <= this.firePower; i++) {
+        const explosionX = this.x + dir.x * i;
+        const explosionY = this.y + dir.y * i;
+
+        if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
+
+        if (walls.has(`${explosionX},${explosionY}`)) {
+          break;
+        }
+
+        this.showExplosionEffect(explosionX, explosionY);
+        this.checkPlayerDamage(explosionX, explosionY);
+      }
+    });
+
+    if (this.element && this.element.parentNode) {
+      this.element.remove();
+    }
+
+    // Firebaseから爆弾を削除
+    remove(ref(database, `bombs/${this.id}`))
+      .then(() => {
+        console.log('Remote Bomb removed successfully:', this.id);
+        delete bombs[this.id];
+        if (this.placedBy === this.playerId) {
+          this.player.bombExploded();
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to remove remote bomb:', error);
+      });
+  }
+}
+
 export function setupBombManager(checkPlayerDamage, player) {
   onValue(ref(database, 'bombs'), (snapshot) => {
     const bombsData = snapshot.val();
@@ -431,20 +549,27 @@ export function setupBombManager(checkPlayerDamage, player) {
 
     // 新しい爆弾または更新された爆弾を処理
     for (const id in bombsData) {
-      const { x, y, timer, firePower, placedBy, type } = bombsData[id];
-      if (!bombs[id]) {
-        if (type === 'split') {
-          bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
-        } else if (type === 'invisible') {
-          bombs[id] = new InvisibleBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
-        } else {
-          bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+      const { x, y, timer, firePower, placedBy, type, isTriggered } = bombsData[id];
+      if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
+        if (!bombs[id]) {
+          if (type === 'split') {
+            bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+          } else if (type === 'invisible') {
+            bombs[id] = new InvisibleBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+          } else if (type === 'remote') {
+            bombs[id] = new RemoteBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+          } else {
+            bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+          }
+        }
+
+        // リモコンバクダンの爆発を同期
+        if (type === 'remote' && isTriggered && !bombs[id].isTriggered) {
+          bombs[id].triggerExplosion();
         }
       } else {
-        // 爆弾の位置が更新された場合、ローカルの爆弾オブジェクトを更新
-        bombs[id].x = x;
-        bombs[id].y = y;
-        bombs[id].render();
+        console.error('Invalid bomb position:', x, y);
+        remove(ref(database, `bombs/${id}`));
       }
     }
   });

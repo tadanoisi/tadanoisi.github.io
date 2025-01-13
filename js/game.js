@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { Player } from './player.js';
-import { Bomb, SplitBomb, InvisibleBomb, setupBombManager } from './bomb.js';
+import { Bomb, SplitBomb, InvisibleBomb, RemoteBomb, setupBombManager } from './bomb.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCdwZ1i8yOhT2WFL540DECEhcllnAKEyrg",
@@ -313,6 +313,8 @@ onValue(ref(database, 'bombs'), (snapshot) => {
           bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         } else if (type === 'invisible') {
           bombs[id] = new InvisibleBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        } else if (type === 'remote') {
+          bombs[id] = new RemoteBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         } else {
           bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         }
@@ -373,7 +375,7 @@ function setupEventListeners() {
           const bombData = {
             x: player.x,
             y: player.y,
-            timer: 3,
+            timer: 0, // リモコンバクダンはタイマーなし
             firePower: player.firePower,
             placedBy: playerId,
             type: currentBombType // 爆弾のタイプを追加
@@ -389,6 +391,15 @@ function setupEventListeners() {
       } else {
         console.error('Bomb position is out of bounds:', player.x, player.y);
         isPlacingBomb = false;
+      }
+    }
+
+    // cキーでリモコンバクダンを起動
+    if (e.key === 'c' && player && player.isMe && !player.isDead && !player.isStunned) {
+      for (const id in bombs) {
+        if (bombs[id].isRemote && bombs[id].placedBy === playerId && !bombs[id].isTriggered) {
+          bombs[id].triggerExplosion();
+        }
       }
     }
   });
@@ -416,6 +427,10 @@ function setupEventListeners() {
       currentBombType = 'invisible';
       updateHUD();
       console.log('Switched to invisible bomb');
+    } else if (e.key === '4') {
+      currentBombType = 'remote';
+      updateHUD();
+      console.log('Switched to remote bomb');
     }
   });
 }
