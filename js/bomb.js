@@ -303,6 +303,117 @@ export class SplitBomb extends Bomb {
     this.element.style.backgroundColor = 'pink'; // 色で区別
   }
 }
+
+export class InvisibleBomb extends Bomb {
+  constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
+    super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+    this.timer = 3; // 通常のタイマー
+    this.opacity = 0; // 初期透明度
+    this.blinkInterval = null; // 点滅アニメーション用のインターバル
+  }
+
+  render() {
+    const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    const cellIndex = this.y * MAP_SIZE + this.x;
+    const cell = gameDiv.children[cellIndex];
+
+    if (!cell) {
+      console.error('Cell not found at:', this.x, this.y);
+      return;
+    }
+
+    if (this.element) {
+      this.element.remove();
+    }
+
+    this.element = document.createElement('div');
+    this.element.classList.add('bomb');
+    this.element.style.opacity = this.opacity; // 初期透明度を設定
+    cell.appendChild(this.element);
+
+    // 爆発タイマーが既に設定されていない場合のみタイマーを設定
+    if (!this.explosionTimer) {
+      this.explosionTimer = setTimeout(() => {
+        console.log(`[BOMB] Invisible Bomb ${this.id} exploded!`); // 爆発ログ
+        this.explode();
+        remove(ref(database, `bombs/${this.id}`))
+          .then(() => {
+            console.log('Invisible Bomb removed successfully:', this.id);
+            delete bombs[this.id];
+            if (this.placedBy === this.playerId) {
+              this.player.bombExploded();
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to remove invisible bomb:', error);
+          });
+      }, this.timer * 1000);
+
+      // 透明度を徐々に変化させるアニメーションを開始
+      this.startFadeInAnimation();
+    }
+  }
+
+  // 透明度を徐々に変化させるアニメーションを開始するメソッド
+  startFadeInAnimation() {
+    const fadeDuration = this.timer * 1000; // 爆発までの時間
+    const fadeSteps = 100; // 透明度を変化させるステップ数
+    const fadeInterval = fadeDuration / fadeSteps; // 各ステップの間隔
+
+    this.blinkInterval = setInterval(() => {
+      if (this.element) {
+        this.opacity += 1 / fadeSteps; // 透明度を徐々に増加
+        this.element.style.opacity = this.opacity;
+
+        // 透明度が1になったらアニメーションを停止
+        if (this.opacity >= 1) {
+          clearInterval(this.blinkInterval);
+          this.blinkInterval = null;
+        }
+      }
+    }, fadeInterval);
+  }
+
+  explode() {
+    const gameDiv = document.getElementById('game');
+    if (!gameDiv) {
+      console.error('Game div not found!');
+      return;
+    }
+
+    const directions = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }, { x: -1, y: 0 },
+      { x: 0, y: 1 }, { x: 0, y: -1 }
+    ];
+
+    directions.forEach((dir) => {
+      for (let i = 0; i <= this.firePower; i++) {
+        const explosionX = this.x + dir.x * i;
+        const explosionY = this.y + dir.y * i;
+
+        if (explosionX < 0 || explosionX >= MAP_SIZE || explosionY < 0 || explosionY >= MAP_SIZE) break;
+
+        if (walls.has(`${explosionX},${explosionY}`)) {
+          break;
+        }
+
+        this.showExplosionEffect(explosionX, explosionY);
+        this.checkPlayerDamage(explosionX, explosionY);
+      }
+    });
+
+    if (this.element && this.element.parentNode) {
+      this.element.remove();
+    }
+  }
+}
+
 export function setupBombManager(checkPlayerDamage, player) {
   onValue(ref(database, 'bombs'), (snapshot) => {
     const bombsData = snapshot.val();
@@ -324,6 +435,8 @@ export function setupBombManager(checkPlayerDamage, player) {
       if (!bombs[id]) {
         if (type === 'split') {
           bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        } else if (type === 'invisible') {
+          bombs[id] = new InvisibleBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         } else {
           bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         }

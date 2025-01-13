@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 import { Player } from './player.js';
-import { Bomb, SplitBomb, setupBombManager } from './bomb.js';
+import { Bomb, SplitBomb, InvisibleBomb, setupBombManager } from './bomb.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCdwZ1i8yOhT2WFL540DECEhcllnAKEyrg",
@@ -58,6 +58,7 @@ function updateHUD() {
     hpDisplay.textContent = `HP: ${player.hp}`;
     firePowerDisplay.textContent = `Fire Power: ${player.firePower}`;
     bombCountDisplay.textContent = `Bombs: ${player.bombCount}/${player.maxBombs}`;
+    bombTypeDisplay.textContent = `Bomb Type: ${currentBombType.charAt(0).toUpperCase() + currentBombType.slice(1)}`;
     if (player.isStunned) {
       hpDisplay.textContent += ' (STUNNED)';
     }
@@ -310,6 +311,8 @@ onValue(ref(database, 'bombs'), (snapshot) => {
       if (!bombs[id]) {
         if (type === 'split') {
           bombs[id] = new SplitBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
+        } else if (type === 'invisible') {
+          bombs[id] = new InvisibleBomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         } else {
           bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         }
@@ -403,12 +406,16 @@ function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (e.key === '1') {
       currentBombType = 'normal';
-      bombTypeDisplay.textContent = 'Bomb Type: Normal';
+      updateHUD();
       console.log('Switched to normal bomb');
     } else if (e.key === '2') {
       currentBombType = 'split';
-      bombTypeDisplay.textContent = 'Bomb Type: Split';
+      updateHUD();
       console.log('Switched to split bomb');
+    } else if (e.key === '3') {
+      currentBombType = 'invisible';
+      updateHUD();
+      console.log('Switched to invisible bomb');
     }
   });
 }
