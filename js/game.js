@@ -388,4 +388,9 @@ function setupEventListeners() {
 
 setupBombManager(checkPlayerDamage, player);
 
+// 操作方法パネルを閉じる処理
+document.getElementById('close-controls').addEventListener('click', () => {
+  document.getElementById('controls-panel').style.display = 'none';
+});
+
 initMap();

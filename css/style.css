@@ -193,3 +193,39 @@
 #respawn-button:hover {
   background-color: #0056b3;
 }
+
+/* 操作方法パネルのスタイル */
+#controls-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  width: 200px;
+  z-index: 1000;
+}
+
+#controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+#close-controls {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#close-controls:hover {
+  color: #ccc;
+}
+
+#controls-content {
+  font-size: 14px;
+}
