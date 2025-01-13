@@ -53,7 +53,7 @@ export class Bomb {
       (p) => p.x === newX && p.y === newY
     );
 
-    if (hitPlayer) {
+    if (hitPlayer && hitPlayer.stun) {
       // プレイヤーを行動不能にする
       hitPlayer.stun();
 
@@ -97,6 +97,8 @@ export class Bomb {
       timer: this.timer,
       firePower: this.firePower,
       placedBy: this.placedBy,
+    }).catch((error) => {
+      console.error('Failed to update bomb position:', error);
     });
   }
 
@@ -263,6 +265,7 @@ export function setupBombManager(checkPlayerDamage, player) {
 
     const currentBombIds = new Set(Object.keys(bombsData));
 
+    // 削除された爆弾を処理
     for (const id in bombs) {
       if (!currentBombIds.has(id)) {
         bombs[id].remove();
@@ -270,10 +273,16 @@ export function setupBombManager(checkPlayerDamage, player) {
       }
     }
 
+    // 新しい爆弾または更新された爆弾を処理
     for (const id in bombsData) {
       const { x, y, timer, firePower, placedBy } = bombsData[id];
       if (!bombs[id]) {
         bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy);
+      } else {
+        // 爆弾の位置が更新された場合、ローカルの爆弾オブジェクトを更新
+        bombs[id].x = x;
+        bombs[id].y = y;
+        bombs[id].render();
       }
     }
   });

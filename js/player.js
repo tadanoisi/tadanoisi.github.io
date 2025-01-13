@@ -1,4 +1,4 @@
-import { MAP_SIZE, bombs, walls, database } from './game.js';
+import { MAP_SIZE, bombs, walls, database, players } from './game.js';
 import { ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
 export class Player {
@@ -18,6 +18,7 @@ export class Player {
     this.canPunch = true; // パンチ可能かどうかを示すフラグ
     this.direction = 'right'; // 初期方向を右に設定
     this.punchDistance = 4; // パンチで爆弾を飛ばせるマス数（4マスに変更）
+    this.isStunned = false; // 行動不能状態かどうかを示すフラグ
     this.render();
   }
 
@@ -88,6 +89,25 @@ export class Player {
     }, 300); // 0.3秒後にエフェクトを削除
   }
 
+  // プレイヤーを行動不能にするメソッド
+  stun() {
+    if (this.isStunned) return; // 既に行動不能の場合は何もしない
+
+    this.isStunned = true;
+    this.element.classList.add('stunned'); // スタン状態を視覚的に表現
+
+    // Firebaseにスタン状態を反映
+    set(ref(database, `players/${this.id}/isStunned`), true);
+
+    setTimeout(() => {
+      this.isStunned = false;
+      this.element.classList.remove('stunned'); // スタン状態を解除
+
+      // Firebaseにスタン状態を反映
+      set(ref(database, `players/${this.id}/isStunned`), false);
+    }, 1000); // 1秒後に行動不能状態を解除
+  }
+
   // プレイヤーの向きを更新するメソッド
   updateDirection(direction) {
     this.direction = direction;
@@ -122,6 +142,13 @@ export class Player {
       this.element.classList.add('my-player');
     }
     cell.appendChild(this.element);
+
+    // スタン状態のエフェクトを反映
+    if (this.isStunned) {
+      this.element.classList.add('stunned');
+    } else {
+      this.element.classList.remove('stunned');
+    }
   }
 
   updatePosition(x, y) {

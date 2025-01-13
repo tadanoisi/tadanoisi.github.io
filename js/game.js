@@ -139,7 +139,7 @@ function initPlayer() {
 
   player = new Player(x, y, playerId, true, updateHUD);
   player.render();
-  set(ref(database, `players/${playerId}`), { x, y, hp: player.hp })
+  set(ref(database, `players/${playerId}`), { x, y, hp: player.hp, isStunned: false })
     .then(() => {
       console.log('Player initialized successfully');
     })
@@ -242,7 +242,7 @@ function respawnPlayer() {
       const { x, y } = getRandomPosition();
       player = new Player(x, y, playerId, true, updateHUD);
       player.render();
-      set(ref(database, `players/${playerId}`), { x, y, hp: player.hp });
+      set(ref(database, `players/${playerId}`), { x, y, hp: player.hp, isStunned: false });
       respawnButton.style.display = 'none';
       updateHUD();
     })
@@ -280,12 +280,16 @@ onValue(ref(database, 'players'), (snapshot) => {
   }
 
   for (const id in playersData) {
-    const { x, y, hp } = playersData[id];
+    const { x, y, hp, isStunned } = playersData[id];
     if (!players[id]) {
       players[id] = new Player(x, y, id, id === playerId, updateHUD);
     }
     players[id].updatePosition(x, y);
     players[id].updateHP(hp);
+
+    if (isStunned) {
+      players[id].stun();
+    }
 
     if (hp <= 0) {
       removePlayer(id);

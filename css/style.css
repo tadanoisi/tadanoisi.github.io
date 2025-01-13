@@ -92,7 +92,7 @@
   background-color: green;
 }
 
-/* 行動不能状態のスタイル */
+/* スタン状態のスタイル */
 .stunned {
   filter: brightness(0.5); /* プレイヤーを暗くする */
   animation: shake 0.1s infinite; /* 震えるアニメーション */
