@@ -306,7 +306,7 @@ onValue(ref(database, 'bombs'), (snapshot) => {
   }
 
   for (const id in bombsData) {
-    const { x, y, timer, firePower, placedBy, type } = bombsData[id];
+    const { x, y, timer, firePower, placedBy, type, isTriggered, opacity } = bombsData[id];
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
         if (type === 'split') {
@@ -318,6 +318,16 @@ onValue(ref(database, 'bombs'), (snapshot) => {
         } else {
           bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         }
+      }
+
+      // 透明度を更新
+      if (type === 'invisible' && bombs[id].element) {
+        bombs[id].element.style.opacity = opacity || 0;
+      }
+
+      // リモコンバクダンの爆発を同期
+      if (type === 'remote' && isTriggered && !bombs[id].isTriggered) {
+        bombs[id].triggerExplosion();
       }
     } else {
       console.error('Invalid bomb position:', x, y);

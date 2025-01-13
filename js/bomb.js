@@ -308,8 +308,8 @@ export class InvisibleBomb extends Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
     this.timer = 3; // 通常のタイマー
-    this.opacity = 0; // 初期透明度
-    this.blinkInterval = null; // 点滅アニメーション用のインターバル
+    this.opacity = 0; // 初期透明度を完全に透明に設定
+    this.fadeInterval = null; // 透明度変化用のインターバル
   }
 
   render() {
@@ -365,15 +365,21 @@ export class InvisibleBomb extends Bomb {
     const fadeSteps = 100; // 透明度を変化させるステップ数
     const fadeInterval = fadeDuration / fadeSteps; // 各ステップの間隔
 
-    this.blinkInterval = setInterval(() => {
+    this.fadeInterval = setInterval(() => {
       if (this.element) {
         this.opacity += 1 / fadeSteps; // 透明度を徐々に増加
         this.element.style.opacity = this.opacity;
 
+        // Firebaseに透明度を保存
+        set(ref(database, `bombs/${this.id}/opacity`), this.opacity)
+          .catch((error) => {
+            console.error('Failed to update bomb opacity:', error);
+          });
+
         // 透明度が1になったらアニメーションを停止
         if (this.opacity >= 1) {
-          clearInterval(this.blinkInterval);
-          this.blinkInterval = null;
+          clearInterval(this.fadeInterval);
+          this.fadeInterval = null;
         }
       }
     }, fadeInterval);
@@ -410,6 +416,30 @@ export class InvisibleBomb extends Bomb {
 
     if (this.element && this.element.parentNode) {
       this.element.remove();
+    }
+  }
+
+  remove() {
+    if (this.element && this.element.parentNode) {
+      this.element.remove();
+      console.log('Invisible Bomb removed from DOM:', this.id);
+    }
+    this.explosionElements.forEach((element) => {
+      if (element && element.parentNode) {
+        element.remove();
+      }
+    });
+
+    // 爆発タイマーをクリア
+    if (this.explosionTimer) {
+      clearTimeout(this.explosionTimer);
+      this.explosionTimer = null;
+    }
+
+    // 透明度変化アニメーションをクリア
+    if (this.fadeInterval) {
+      clearInterval(this.fadeInterval);
+      this.fadeInterval = null;
     }
   }
 }
