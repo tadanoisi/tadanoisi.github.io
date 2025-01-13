@@ -1,4 +1,4 @@
-import { MAP_SIZE, bombs, walls, database, players } from './game.js';
+import { MAP_SIZE, bombs, walls, database, players, getRandomPosition } from './game.js';
 import { ref, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
 export class Player {
@@ -19,12 +19,40 @@ export class Player {
     this.direction = 'right'; // 初期方向を右に設定
     this.punchDistance = 4; // パンチで爆弾を飛ばせるマス数（4マスに変更）
     this.isStunned = false; // 行動不能状態かどうかを示すフラグ
+    this.isDead = false; // 死亡状態を管理するフラグ
     this.render();
+  }
+
+  // プレイヤーがダメージを受けるメソッド
+  takeDamage() {
+    if (this.isDead) return; // 死亡状態ならダメージを受けない
+
+    this.hp -= 1;
+    if (this.hp <= 0) {
+      this.die();
+    }
+    this.updateHUD();
+  }
+
+  // プレイヤーが死亡するメソッド
+  die() {
+    this.isDead = true;
+    this.remove();
+    alert('You died! Press the respawn button to come back.');
+  }
+
+  // プレイヤーをリスポーンさせるメソッド
+  respawn() {
+    this.isDead = false;
+    this.hp = 3;
+    const { x, y } = getRandomPosition(); // getRandomPosition を使用
+    this.updatePosition(x, y);
+    this.updateHUD();
   }
 
   // パンチを実行するメソッド
   punch() {
-    if (!this.canPunch) return; // クールダウン中はパンチできない
+    if (!this.canPunch || this.isDead) return; // クールダウン中または死亡状態ならパンチできない
 
     const directions = {
       up: { x: 0, y: -1 },
@@ -91,7 +119,7 @@ export class Player {
 
   // プレイヤーを行動不能にするメソッド
   stun() {
-    if (this.isStunned) return; // 既に行動不能の場合は何もしない
+    if (this.isStunned || this.isDead) return; // 既に行動不能または死亡状態の場合は何もしない
 
     this.isStunned = true;
     this.element.classList.add('stunned'); // スタン状態を視覚的に表現
@@ -171,7 +199,7 @@ export class Player {
   }
 
   placeBomb() {
-    if (this.canPlaceBomb()) {
+    if (this.canPlaceBomb() && !this.isDead) {
       this.bombCount++;
       this.updateHUD();
     }

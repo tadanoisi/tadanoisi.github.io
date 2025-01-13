@@ -36,6 +36,19 @@ const firePowerInput = document.getElementById('fire-power-input');
 const applyStatusButton = document.getElementById('apply-status');
 
 /**
+ * ランダムな位置を取得する関数
+ * @returns {Object} - ランダムな位置 { x, y }
+ */
+export function getRandomPosition() {
+  let x, y;
+  do {
+    x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
+    y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
+  } while (isWallOrBlock(x, y) || isOccupied(x, y));
+  return { x, y };
+}
+
+/**
  * HUDを更新する関数
  */
 function updateHUD() {
@@ -75,19 +88,6 @@ function updatePlayerList(players) {
 
     playerListDiv.appendChild(playerItem);
   }
-}
-
-/**
- * ランダムな位置を取得する関数
- * @returns {Object} - ランダムな位置 { x, y }
- */
-function getRandomPosition() {
-  let x, y;
-  do {
-    x = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
-    y = Math.floor(Math.random() * (MAP_SIZE - 2)) + 1;
-  } while (isWallOrBlock(x, y) || isOccupied(x, y));
-  return { x, y };
 }
 
 /**
@@ -195,9 +195,9 @@ function isBombAt(x, y) {
  * @param {number} y - Y座標
  */
 function checkPlayerDamage(x, y) {
-  if (player.x === x && player.y === y && !player.isDamaged) {
+  if (player && player.x === x && player.y === y && !player.isDamaged && !player.isDead) {
     player.isDamaged = true;
-    player.updateHP(player.hp - 1);
+    player.takeDamage();
 
     if (player.hp <= 0) {
       removePlayer(playerId);
@@ -234,21 +234,10 @@ function removePlayer(playerId) {
  */
 function respawnPlayer() {
   if (player) {
-    player.remove();
+    player.respawn();
+    set(ref(database, `players/${playerId}`), { x: player.x, y: player.y, hp: player.hp, isStunned: false });
+    respawnButton.style.display = 'none';
   }
-
-  remove(ref(database, `players/${playerId}`))
-    .then(() => {
-      const { x, y } = getRandomPosition();
-      player = new Player(x, y, playerId, true, updateHUD);
-      player.render();
-      set(ref(database, `players/${playerId}`), { x, y, hp: player.hp, isStunned: false });
-      respawnButton.style.display = 'none';
-      updateHUD();
-    })
-    .catch((error) => {
-      console.error('Failed to remove old player data:', error);
-    });
 }
 
 // ステータスを適用するイベントリスナー
@@ -334,7 +323,7 @@ window.onbeforeunload = () => {
  */
 function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
-    if (player.isMe) {
+    if (player && player.isMe && !player.isDead) {
       let newX = player.x;
       let newY = player.y;
       switch (e.key) {
@@ -357,7 +346,7 @@ function setupEventListeners() {
 
   let isPlacingBomb = false;
   document.addEventListener('keydown', async (e) => {
-    if (e.key === ' ' && player.isMe && player.canPlaceBomb() && !isPlacingBomb) {
+    if (e.key === ' ' && player && player.isMe && player.canPlaceBomb() && !isPlacingBomb && !player.isDead) {
       isPlacingBomb = true;
       const bombId = `bomb_${Math.floor(Math.random() * 1000)}`;
 
