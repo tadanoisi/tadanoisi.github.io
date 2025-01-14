@@ -96,6 +96,7 @@ export class Player {
     }
   }
 
+
   // パンチのエフェクトを表示するメソッド
   showPunchEffect() {
     const gameDiv = document.getElementById('game');

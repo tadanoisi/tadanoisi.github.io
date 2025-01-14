@@ -148,6 +148,7 @@ function initPlayer() {
   set(ref(database, `players/${playerId}`), { x, y, hp: player.hp, isStunned: false })
     .then(() => {
       console.log('Player initialized successfully');
+      setupBombManager(checkPlayerDamage, player, playerId); // playerIdを渡す
     })
     .catch((error) => {
       console.error('Failed to initialize player:', error);
@@ -163,17 +164,6 @@ function initPlayer() {
  */
 function isWallOrBlock(x, y) {
   return walls.has(`${x},${y}`);
-}
-
-/**
- * 指定された位置が他のプレイヤーに占有されているかどうかを確認する関数
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @returns {boolean} - 占有されている場合 true
- */
-function isOccupied(x, y) {
-  // プレイヤー同士の当たり判定をなくすため、常にfalseを返す
-  return false;
 }
 
 /**
@@ -298,6 +288,7 @@ onValue(ref(database, 'bombs'), (snapshot) => {
 
   const currentBombIds = new Set(Object.keys(bombsData));
 
+  // 削除された爆弾を処理
   for (const id in bombs) {
     if (!currentBombIds.has(id)) {
       bombs[id].remove();
@@ -305,8 +296,18 @@ onValue(ref(database, 'bombs'), (snapshot) => {
     }
   }
 
+  // 新しい爆弾または更新された爆弾を処理
   for (const id in bombsData) {
     const { x, y, timer, firePower, placedBy, type, isTriggered, opacity } = bombsData[id];
+
+    // 位置が undefined の場合のエラーハンドリング
+    if (x === undefined || y === undefined) {
+      console.error(`Invalid bomb position: ${x}, ${y}`);
+      console.log('Bomb data:', bombsData[id]); // 爆弾のデータをログに出力
+      remove(ref(database, `bombs/${id}`)); // 無効な爆弾を削除
+      continue;
+    }
+
     if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
       if (!bombs[id]) {
         if (type === 'split') {
@@ -319,6 +320,11 @@ onValue(ref(database, 'bombs'), (snapshot) => {
           bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
         }
       }
+
+      // 爆弾の位置を更新
+      bombs[id].x = x;
+      bombs[id].y = y;
+      bombs[id].render();
 
       // 透明度を更新
       if (type === 'invisible' && bombs[id].element) {
@@ -367,7 +373,7 @@ function setupEventListeners() {
 
       if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) return;
       if (isWallOrBlock(newX, newY)) return;
-      if (isBombAt(newX, newY)) return;
+      if (isBombAt(newX, newY)) return; // ここで isBombAt を使用
 
       player.updatePosition(newX, newY);
       set(ref(database, `players/${playerId}`), { x: newX, y: newY, hp: player.hp, isStunned: player.isStunned });
@@ -383,13 +389,15 @@ function setupEventListeners() {
       if (player.x >= 0 && player.x < MAP_SIZE && player.y >= 0 && player.y < MAP_SIZE) {
         try {
           const bombData = {
-            x: player.x,
+            x: player.x, // プレイヤーの現在位置を爆弾の位置として設定
             y: player.y,
             timer: 0, // リモコンバクダンはタイマーなし
             firePower: player.firePower,
             placedBy: playerId,
             type: currentBombType // 爆弾のタイプを追加
           };
+
+          console.log(`Placing bomb at (${bombData.x}, ${bombData.y})`); // デバッグ用ログ
 
           await set(ref(database, `bombs/${bombId}`), bombData);
           player.placeBomb();
@@ -444,7 +452,5 @@ function setupEventListeners() {
     }
   });
 }
-
-setupBombManager(checkPlayerDamage, player);
 
 initMap();

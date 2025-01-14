@@ -19,8 +19,9 @@ function releaseExplosionElement(explosionElement) {
 
 export class Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
-    this.x = x;
-    this.y = y;
+    // 位置が undefined の場合のデフォルト値を設定
+    this.x = x !== undefined ? x : 0;
+    this.y = y !== undefined ? y : 0;
     this.id = id;
     this.firePower = firePower;
     this.timer = 3; // 爆発までのタイマー
@@ -32,11 +33,14 @@ export class Bomb {
     this.explosionElements = [];
     this.explosionTimer = null; // 爆発タイマーを保持するプロパティ
     this.blinkInterval = null; // 点滅アニメーション用のインターバル
+    this.type = 'normal'; // デフォルトの爆弾タイプ
     this.render();
   }
 
   // 爆弾を指定された位置に移動させるメソッド
   moveTo(newX, newY) {
+    console.log(`Moving bomb ${this.id} to (${newX}, ${newY})`); // デバッグ用ログ
+
     if (
       newX < 0 ||
       newX >= MAP_SIZE ||
@@ -45,6 +49,7 @@ export class Bomb {
       walls.has(`${newX},${newY}`) ||
       Object.values(bombs).some((b) => b.x === newX && b.y === newY && b.id !== this.id)
     ) {
+      console.log(`Bomb ${this.id} cannot move to (${newX}, ${newY})`); // デバッグ用ログ
       return; // 移動できない場合は停止
     }
 
@@ -97,6 +102,7 @@ export class Bomb {
       timer: this.timer,
       firePower: this.firePower,
       placedBy: this.placedBy,
+      type: this.type, // 爆弾のタイプを追加
     }).catch((error) => {
       console.error('Failed to update bomb position:', error);
     });
@@ -168,6 +174,14 @@ export class Bomb {
   }
 
   explode() {
+    console.log(`[BOMB] Bomb ${this.id} exploded at (${this.x}, ${this.y})`); // デバッグ用ログ
+
+    // 位置が undefined の場合のエラーハンドリング
+    if (this.x === undefined || this.y === undefined) {
+      console.error(`Invalid bomb position: ${this.x}, ${this.y}`);
+      return;
+    }
+
     const gameDiv = document.getElementById('game');
     if (!gameDiv) {
       console.error('Game div not found!');
@@ -263,6 +277,7 @@ export class SplitBomb extends Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
     this.timer = 3; // 通常のタイマー
+    this.type = 'split'; // 爆弾のタイプを設定
   }
 
   explode() {
@@ -292,7 +307,8 @@ export class SplitBomb extends Bomb {
           y: newY,
           timer: 1,
           firePower: 1,
-          placedBy: this.placedBy
+          placedBy: this.placedBy,
+          type: 'normal' // ノーマルの爆弾を生成
         });
       }
     });
@@ -310,6 +326,24 @@ export class InvisibleBomb extends Bomb {
     this.timer = 3; // 通常のタイマー
     this.opacity = 0; // 初期透明度を完全に透明に設定
     this.fadeInterval = null; // 透明度変化用のインターバル
+    this.type = 'invisible'; // 爆弾のタイプを設定
+
+    // 位置が undefined の場合のデフォルト値を設定
+    this.x = x !== undefined ? x : 0;
+    this.y = y !== undefined ? y : 0;
+
+    // Firebaseに爆弾の初期データを保存
+    set(ref(database, `bombs/${this.id}`), {
+      x: this.x,
+      y: this.y,
+      timer: this.timer,
+      firePower: this.firePower,
+      placedBy: this.placedBy,
+      type: this.type,
+      opacity: this.opacity,
+    }).catch((error) => {
+      console.error('Failed to initialize invisible bomb:', error);
+    });
   }
 
   render() {
@@ -386,6 +420,14 @@ export class InvisibleBomb extends Bomb {
   }
 
   explode() {
+    console.log(`[BOMB] Invisible Bomb ${this.id} exploded at (${this.x}, ${this.y})`); // デバッグ用ログ
+
+    // 位置が undefined の場合のエラーハンドリング
+    if (this.x === undefined || this.y === undefined) {
+      console.error(`Invalid bomb position: ${this.x}, ${this.y}`);
+      return;
+    }
+
     const gameDiv = document.getElementById('game');
     if (!gameDiv) {
       console.error('Game div not found!');
@@ -451,6 +493,7 @@ export class RemoteBomb extends Bomb {
     this.warningCount = 0; // 警告回数を管理
     this.warningInterval = null; // 警告用のインターバル
     this.isTriggered = false; // 爆発がトリガーされたかどうかを示すフラグ
+    this.type = 'remote'; // 爆弾のタイプを設定
   }
 
   // 爆発タイマーを無効化する
@@ -562,7 +605,7 @@ export class RemoteBomb extends Bomb {
   }
 }
 
-export function setupBombManager(checkPlayerDamage, player) {
+export function setupBombManager(checkPlayerDamage, player, playerId) {
   onValue(ref(database, 'bombs'), (snapshot) => {
     const bombsData = snapshot.val();
     if (!bombsData) return;
@@ -579,7 +622,16 @@ export function setupBombManager(checkPlayerDamage, player) {
 
     // 新しい爆弾または更新された爆弾を処理
     for (const id in bombsData) {
-      const { x, y, timer, firePower, placedBy, type, isTriggered } = bombsData[id];
+      const { x, y, timer, firePower, placedBy, type, isTriggered, opacity } = bombsData[id];
+
+      // 位置が undefined の場合のエラーハンドリング
+      if (x === undefined || y === undefined) {
+        console.error(`Invalid bomb position: ${x}, ${y}`);
+        console.log('Bomb data:', bombsData[id]); // 爆弾のデータをログに出力
+        remove(ref(database, `bombs/${id}`)); // 無効な爆弾を削除
+        continue;
+      }
+
       if (x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE) {
         if (!bombs[id]) {
           if (type === 'split') {
@@ -591,6 +643,16 @@ export function setupBombManager(checkPlayerDamage, player) {
           } else {
             bombs[id] = new Bomb(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
           }
+        }
+
+        // 爆弾の位置を更新
+        bombs[id].x = x;
+        bombs[id].y = y;
+        bombs[id].render();
+
+        // 透明度を更新
+        if (type === 'invisible' && bombs[id].element) {
+          bombs[id].element.style.opacity = opacity || 0;
         }
 
         // リモコンバクダンの爆発を同期
