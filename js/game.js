@@ -391,10 +391,11 @@ function setupEventListeners() {
           const bombData = {
             x: player.x, // プレイヤーの現在位置を爆弾の位置として設定
             y: player.y,
-            timer: 0, // リモコンバクダンはタイマーなし
+            timer: 3, // 爆発までのタイマー
             firePower: player.firePower,
             placedBy: playerId,
-            type: currentBombType // 爆弾のタイプを追加
+            type: currentBombType, // 爆弾のタイプを追加
+            opacity: 0 // 透明爆弾の初期透明度
           };
 
           console.log(`Placing bomb at (${bombData.x}, ${bombData.y})`); // デバッグ用ログ
@@ -442,13 +443,13 @@ function setupEventListeners() {
       updateHUD();
       console.log('Switched to split bomb');
     } else if (e.key === '3') {
-      currentBombType = 'invisible';
-      updateHUD();
-      console.log('Switched to invisible bomb');
-    } else if (e.key === '4') {
       currentBombType = 'remote';
       updateHUD();
       console.log('Switched to remote bomb');
+    } else if (e.key === '4') {
+      currentBombType = 'invisible';
+      updateHUD();
+      console.log('Switched to invisible bomb');
     }
   });
 }

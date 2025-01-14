@@ -19,27 +19,25 @@ function releaseExplosionElement(explosionElement) {
 
 export class Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
-    // 位置が undefined の場合のデフォルト値を設定
     this.x = x !== undefined ? x : 0;
     this.y = y !== undefined ? y : 0;
     this.id = id;
     this.firePower = firePower;
-    this.timer = 3; // 爆発までのタイマー
+    this.timer = 3;
     this.element = null;
     this.checkPlayerDamage = checkPlayerDamage;
     this.player = player;
     this.placedBy = placedBy;
     this.playerId = playerId;
     this.explosionElements = [];
-    this.explosionTimer = null; // 爆発タイマーを保持するプロパティ
-    this.blinkInterval = null; // 点滅アニメーション用のインターバル
-    this.type = 'normal'; // デフォルトの爆弾タイプ
+    this.explosionTimer = null;
+    this.blinkInterval = null;
+    this.type = 'normal';
     this.render();
   }
 
-  // 爆弾を指定された位置に移動させるメソッド
   moveTo(newX, newY) {
-    console.log(`Moving bomb ${this.id} to (${newX}, ${newY})`); // デバッグ用ログ
+    console.log(`Moving bomb ${this.id} to (${newX}, ${newY})`);
 
     if (
       newX < 0 ||
@@ -49,20 +47,18 @@ export class Bomb {
       walls.has(`${newX},${newY}`) ||
       Object.values(bombs).some((b) => b.x === newX && b.y === newY && b.id !== this.id)
     ) {
-      console.log(`Bomb ${this.id} cannot move to (${newX}, ${newY})`); // デバッグ用ログ
-      return; // 移動できない場合は停止
+      console.log(`Bomb ${this.id} cannot move to (${newX}, ${newY})`);
+      return;
     }
 
-    // 他のプレイヤーに当たったか確認
     const hitPlayer = Object.values(players).find(
       (p) => p.x === newX && p.y === newY
     );
 
     if (hitPlayer) {
-      console.log(`[BOMB] Player ${hitPlayer.id} hit by bomb!`); // プレイヤーが爆弾に当たったログ
-      hitPlayer.stun(); // プレイヤーをスタン状態にする
+      console.log(`[BOMB] Player ${hitPlayer.id} hit by bomb!`);
+      hitPlayer.stun();
 
-      // 爆弾を進行方向の隣のマスに移動させる
       const directions = {
         up: { x: 0, y: -1 },
         down: { x: 0, y: 1 },
@@ -75,7 +71,6 @@ export class Bomb {
         const nextX = newX + move.x;
         const nextY = newY + move.y;
 
-        // 移動先が壁や他の爆弾でないか確認
         if (
           nextX >= 0 &&
           nextX < MAP_SIZE &&
@@ -90,19 +85,17 @@ export class Bomb {
       }
     }
 
-    // 爆弾の位置を更新
     this.x = newX;
     this.y = newY;
     this.render();
 
-    // Firebaseに爆弾の新しい位置を反映
     set(ref(database, `bombs/${this.id}`), {
       x: this.x,
       y: this.y,
       timer: this.timer,
       firePower: this.firePower,
       placedBy: this.placedBy,
-      type: this.type, // 爆弾のタイプを追加
+      type: this.type,
     }).catch((error) => {
       console.error('Failed to update bomb position:', error);
     });
@@ -131,10 +124,9 @@ export class Bomb {
     this.element.classList.add('bomb');
     cell.appendChild(this.element);
 
-    // 爆発タイマーが既に設定されていない場合のみタイマーを設定
     if (!this.explosionTimer && this.timer > 0) {
       this.explosionTimer = setTimeout(() => {
-        console.log(`[BOMB] Bomb ${this.id} exploded!`); // 爆発ログ
+        console.log(`[BOMB] Bomb ${this.id} exploded!`);
         this.explode();
         remove(ref(database, `bombs/${this.id}`))
           .then(() => {
@@ -149,22 +141,19 @@ export class Bomb {
           });
       }, this.timer * 1000);
 
-      // 爆発前に点滅アニメーションを開始
       this.startBlinkAnimation();
     }
   }
 
-  // 爆発前に点滅アニメーションを開始するメソッド
   startBlinkAnimation() {
     let blinkCount = 0;
-    const blinkDuration = 500; // 点滅の間隔（ミリ秒）
+    const blinkDuration = 500;
 
     this.blinkInterval = setInterval(() => {
       if (this.element) {
         this.element.style.opacity = this.element.style.opacity === '0.5' ? '1' : '0.5';
         blinkCount++;
 
-        // 点滅を3回繰り返したらアニメーションを停止
         if (blinkCount >= 6) {
           clearInterval(this.blinkInterval);
           this.blinkInterval = null;
@@ -174,9 +163,8 @@ export class Bomb {
   }
 
   explode() {
-    console.log(`[BOMB] Bomb ${this.id} exploded at (${this.x}, ${this.y})`); // デバッグ用ログ
+    console.log(`[BOMB] Bomb ${this.id} exploded at (${this.x}, ${this.y})`);
 
-    // 位置が undefined の場合のエラーハンドリング
     if (this.x === undefined || this.y === undefined) {
       console.error(`Invalid bomb position: ${this.x}, ${this.y}`);
       return;
@@ -259,13 +247,11 @@ export class Bomb {
       }
     });
 
-    // 爆発タイマーをクリア
     if (this.explosionTimer) {
       clearTimeout(this.explosionTimer);
       this.explosionTimer = null;
     }
 
-    // 点滅アニメーションをクリア
     if (this.blinkInterval) {
       clearInterval(this.blinkInterval);
       this.blinkInterval = null;
@@ -276,8 +262,8 @@ export class Bomb {
 export class SplitBomb extends Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
-    this.timer = 3; // 通常のタイマー
-    this.type = 'split'; // 爆弾のタイプを設定
+    this.timer = 3;
+    this.type = 'split';
   }
 
   explode() {
@@ -287,15 +273,14 @@ export class SplitBomb extends Bomb {
 
   split() {
     const directions = [
-      { x: 1, y: 0 }, { x: -1, y: 0 }, // 右と左
-      { x: 0, y: 1 }, { x: 0, y: -1 }  // 下と上
+      { x: 1, y: 0 }, { x: -1, y: 0 },
+      { x: 0, y: 1 }, { x: 0, y: -1 }
     ];
 
     directions.forEach(dir => {
-      const newX = this.x + dir.x * 2; // 2マス先の位置を計算
+      const newX = this.x + dir.x * 2;
       const newY = this.y + dir.y * 2;
 
-      // マップの範囲内かつ壁でない場合のみ爆弾を設置
       if (
         newX >= 0 && newX < MAP_SIZE &&
         newY >= 0 && newY < MAP_SIZE &&
@@ -308,7 +293,7 @@ export class SplitBomb extends Bomb {
           timer: 1,
           firePower: 1,
           placedBy: this.placedBy,
-          type: 'normal' // ノーマルの爆弾を生成
+          type: 'normal'
         });
       }
     });
@@ -316,23 +301,21 @@ export class SplitBomb extends Bomb {
 
   render() {
     super.render();
-    this.element.style.backgroundColor = 'pink'; // 色で区別
+    this.element.style.backgroundColor = 'pink';
   }
 }
 
 export class InvisibleBomb extends Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
-    this.timer = 3; // 通常のタイマー
-    this.opacity = 0; // 初期透明度を完全に透明に設定
-    this.fadeInterval = null; // 透明度変化用のインターバル
-    this.type = 'invisible'; // 爆弾のタイプを設定
+    this.timer = 3;
+    this.opacity = 0;
+    this.fadeInterval = null;
+    this.type = 'invisible';
 
-    // 位置が undefined の場合のデフォルト値を設定
     this.x = x !== undefined ? x : 0;
     this.y = y !== undefined ? y : 0;
 
-    // Firebaseに爆弾の初期データを保存
     set(ref(database, `bombs/${this.id}`), {
       x: this.x,
       y: this.y,
@@ -367,13 +350,12 @@ export class InvisibleBomb extends Bomb {
 
     this.element = document.createElement('div');
     this.element.classList.add('bomb');
-    this.element.style.opacity = this.opacity; // 初期透明度を設定
+    this.element.style.opacity = this.opacity;
     cell.appendChild(this.element);
 
-    // 爆発タイマーが既に設定されていない場合のみタイマーを設定
     if (!this.explosionTimer) {
       this.explosionTimer = setTimeout(() => {
-        console.log(`[BOMB] Invisible Bomb ${this.id} exploded!`); // 爆発ログ
+        console.log(`[BOMB] Invisible Bomb ${this.id} exploded!`);
         this.explode();
         remove(ref(database, `bombs/${this.id}`))
           .then(() => {
@@ -388,29 +370,25 @@ export class InvisibleBomb extends Bomb {
           });
       }, this.timer * 1000);
 
-      // 透明度を徐々に変化させるアニメーションを開始
       this.startFadeInAnimation();
     }
   }
 
-  // 透明度を徐々に変化させるアニメーションを開始するメソッド
   startFadeInAnimation() {
-    const fadeDuration = this.timer * 1000; // 爆発までの時間
-    const fadeSteps = 100; // 透明度を変化させるステップ数
-    const fadeInterval = fadeDuration / fadeSteps; // 各ステップの間隔
+    const fadeDuration = this.timer * 1000;
+    const fadeSteps = 100;
+    const fadeInterval = fadeDuration / fadeSteps;
 
     this.fadeInterval = setInterval(() => {
       if (this.element) {
-        this.opacity += 1 / fadeSteps; // 透明度を徐々に増加
+        this.opacity += 1 / fadeSteps;
         this.element.style.opacity = this.opacity;
 
-        // Firebaseに透明度を保存
         set(ref(database, `bombs/${this.id}/opacity`), this.opacity)
           .catch((error) => {
             console.error('Failed to update bomb opacity:', error);
           });
 
-        // 透明度が1になったらアニメーションを停止
         if (this.opacity >= 1) {
           clearInterval(this.fadeInterval);
           this.fadeInterval = null;
@@ -420,9 +398,8 @@ export class InvisibleBomb extends Bomb {
   }
 
   explode() {
-    console.log(`[BOMB] Invisible Bomb ${this.id} exploded at (${this.x}, ${this.y})`); // デバッグ用ログ
+    console.log(`[BOMB] Invisible Bomb ${this.id} exploded at (${this.x}, ${this.y})`);
 
-    // 位置が undefined の場合のエラーハンドリング
     if (this.x === undefined || this.y === undefined) {
       console.error(`Invalid bomb position: ${this.x}, ${this.y}`);
       return;
@@ -472,13 +449,11 @@ export class InvisibleBomb extends Bomb {
       }
     });
 
-    // 爆発タイマーをクリア
     if (this.explosionTimer) {
       clearTimeout(this.explosionTimer);
       this.explosionTimer = null;
     }
 
-    // 透明度変化アニメーションをクリア
     if (this.fadeInterval) {
       clearInterval(this.fadeInterval);
       this.fadeInterval = null;
@@ -489,14 +464,13 @@ export class InvisibleBomb extends Bomb {
 export class RemoteBomb extends Bomb {
   constructor(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId) {
     super(x, y, id, firePower, checkPlayerDamage, player, placedBy, playerId);
-    this.isRemote = true; // リモコンバクダンであることを示すフラグ
-    this.warningCount = 0; // 警告回数を管理
-    this.warningInterval = null; // 警告用のインターバル
-    this.isTriggered = false; // 爆発がトリガーされたかどうかを示すフラグ
-    this.type = 'remote'; // 爆弾のタイプを設定
+    this.isRemote = true;
+    this.warningCount = 0;
+    this.warningInterval = null;
+    this.isTriggered = false;
+    this.type = 'remote';
   }
 
-  // 爆発タイマーを無効化する
   render() {
     const gameDiv = document.getElementById('game');
     if (!gameDiv) {
@@ -518,17 +492,15 @@ export class RemoteBomb extends Bomb {
 
     this.element = document.createElement('div');
     this.element.classList.add('bomb');
-    this.element.style.backgroundColor = 'blue'; // リモコンバクダンの色を青に設定
+    this.element.style.backgroundColor = 'blue';
     cell.appendChild(this.element);
 
-    // 爆発タイマーを無効化
     if (this.explosionTimer) {
       clearTimeout(this.explosionTimer);
       this.explosionTimer = null;
     }
   }
 
-  // 警告を表示するメソッド
   showWarning() {
     if (this.element) {
       this.element.style.backgroundColor = this.warningCount % 2 === 0 ? 'red' : 'black';
@@ -537,18 +509,16 @@ export class RemoteBomb extends Bomb {
       if (this.warningCount >= 2) {
         clearInterval(this.warningInterval);
         this.warningInterval = null;
-        this.explode(); // 2回の警告後に爆発
+        this.explode();
       }
     }
   }
 
-  // 爆発をトリガーするメソッド
   triggerExplosion() {
     if (this.isRemote && !this.isTriggered) {
-      this.isTriggered = true; // トリガー済みにする
-      this.warningInterval = setInterval(() => this.showWarning(), 500); // 0.5秒間隔で警告
+      this.isTriggered = true;
+      this.warningInterval = setInterval(() => this.showWarning(), 500);
 
-      // Firebaseに爆発をトリガーしたことを反映
       set(ref(database, `bombs/${this.id}/isTriggered`), true)
         .catch((error) => {
           console.error('Failed to update bomb trigger status:', error);
@@ -556,7 +526,6 @@ export class RemoteBomb extends Bomb {
     }
   }
 
-  // 爆発処理
   explode() {
     const gameDiv = document.getElementById('game');
     if (!gameDiv) {
@@ -590,7 +559,6 @@ export class RemoteBomb extends Bomb {
       this.element.remove();
     }
 
-    // Firebaseから爆弾を削除
     remove(ref(database, `bombs/${this.id}`))
       .then(() => {
         console.log('Remote Bomb removed successfully:', this.id);
@@ -612,7 +580,6 @@ export function setupBombManager(checkPlayerDamage, player, playerId) {
 
     const currentBombIds = new Set(Object.keys(bombsData));
 
-    // 削除された爆弾を処理
     for (const id in bombs) {
       if (!currentBombIds.has(id)) {
         bombs[id].remove();
@@ -620,15 +587,13 @@ export function setupBombManager(checkPlayerDamage, player, playerId) {
       }
     }
 
-    // 新しい爆弾または更新された爆弾を処理
     for (const id in bombsData) {
       const { x, y, timer, firePower, placedBy, type, isTriggered, opacity } = bombsData[id];
 
-      // 位置が undefined の場合のエラーハンドリング
       if (x === undefined || y === undefined) {
         console.error(`Invalid bomb position: ${x}, ${y}`);
-        console.log('Bomb data:', bombsData[id]); // 爆弾のデータをログに出力
-        remove(ref(database, `bombs/${id}`)); // 無効な爆弾を削除
+        console.log('Bomb data:', bombsData[id]);
+        remove(ref(database, `bombs/${id}`));
         continue;
       }
 
@@ -645,17 +610,14 @@ export function setupBombManager(checkPlayerDamage, player, playerId) {
           }
         }
 
-        // 爆弾の位置を更新
         bombs[id].x = x;
         bombs[id].y = y;
         bombs[id].render();
 
-        // 透明度を更新
         if (type === 'invisible' && bombs[id].element) {
           bombs[id].element.style.opacity = opacity || 0;
         }
 
-        // リモコンバクダンの爆発を同期
         if (type === 'remote' && isTriggered && !bombs[id].isTriggered) {
           bombs[id].triggerExplosion();
         }
